@@ -1,10 +1,6 @@
-/**
- * @module  audio-filter
- */
-'use strict'
-
-module.exports = {
-	leaky: require('./leaky')
-}
-
-
+export * from './weighting/index.js'
+export * from './auditory/index.js'
+export * from './analog/index.js'
+export * from './speech/index.js'
+export * from './eq/index.js'
+export * from './effect/index.js'

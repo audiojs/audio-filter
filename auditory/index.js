@@ -1,0 +1,4 @@
+export { default as gammatone } from './gammatone.js'
+export { default as octaveBank } from './octave-bank.js'
+export { default as erbBank } from './erb-bank.js'
+export { default as barkBank } from './bark-bank.js'

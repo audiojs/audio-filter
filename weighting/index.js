@@ -1,0 +1,5 @@
+export { default as aWeighting } from './a-weighting.js'
+export { default as cWeighting } from './c-weighting.js'
+export { default as kWeighting } from './k-weighting.js'
+export { default as itu468 } from './itu468.js'
+export { default as riaa } from './riaa.js'

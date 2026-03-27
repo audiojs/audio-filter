@@ -1,8 +1,17 @@
 {
   "name": "audio-filter",
-  "version": "1.0.0",
-  "description": "Collection of digital filters",
-  "main": "index.js",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Audio filters – weighting, auditory, analog, speech, eq, effects",
+  "exports": {
+    ".": "./index.js",
+    "./weighting": "./weighting/index.js",
+    "./auditory": "./auditory/index.js",
+    "./analog": "./analog/index.js",
+    "./speech": "./speech/index.js",
+    "./eq": "./eq/index.js",
+    "./effect": "./effect/index.js"
+  },
   "scripts": {
     "test": "node test.js"
   },
@@ -12,23 +21,21 @@
   },
   "keywords": [
     "audio",
-    "audiojs",
     "dsp",
-    "digital filters",
-    "psychoacoustics",
-    "noise",
-    "equal-loudness-curve",
-    "ISO-226",
-    "ITU-R-468"
+    "filter",
+    "a-weighting",
+    "equalizer",
+    "moog",
+    "vocoder",
+    "gammatone",
+    "psychoacoustics"
   ],
   "author": "Dima Yv <dfcreative@gmail.com>",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/audiojs/audio-filter/issues"
+  "dependencies": {
+    "digital-filter": "^2.0.0"
   },
-  "homepage": "https://github.com/audiojs/audio-filter#readme",
   "devDependencies": {
-    "almost-equal": "^1.1.0",
-    "tape": "^4.6.3"
+    "tst": "^9.4.0"
   }
 }

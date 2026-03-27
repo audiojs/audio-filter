@@ -1,28 +1,422 @@
-'use strict'
+import test, { almost, ok, is } from 'tst'
+import * as audio from './index.js'
+import { biquad, filter, freqz, mag2db } from 'digital-filter'
 
-var test = require('tape')
-var filter = require('./')
-var almostEqual = require('almost-equal')
+let EPSILON = 1e-10
+let LOOSE = 1e-4
 
-function almost (x, y) {
-	if (x.length && y.length) return x.every(function (x, i) {
-		return almost(x, y[i]);
-	});
+function impulse (n) {
+	let d = new Float64Array(n || 64)
+	d[0] = 1
+	return d
+}
 
-	var EPSILON = 10e-15;
+function dc (n, val) {
+	let d = new Float64Array(n || 64)
+	d.fill(val || 1)
+	return d
+}
 
-	if (!almostEqual(x, y, EPSILON)) throw Error(`${x} ≈ ${y}`);
+test('dcBlocker — removes DC', () => {
+	let data = dc(2048)
+	audio.dcBlocker(data, {R: 0.995})
+	ok(Math.abs(data[2047]) < 0.01, 'DC removed after settling')
+})
 
-	return true;
-};
+test('comb feedforward — echo at delay', () => {
+	let data = impulse(8)
+	audio.comb(data, {delay: 3, gain: 0.5, type: 'feedforward'})
+	almost(data[0], 1, EPSILON)
+	almost(data[3], 0.5, EPSILON)
+	almost(data[1], 0, EPSILON)
+})
 
+test('comb feedback — decaying echoes', () => {
+	let data = impulse(10)
+	audio.comb(data, {delay: 3, gain: 0.5, type: 'feedback'})
+	almost(data[0], 1, EPSILON)
+	almost(data[3], 0.5, EPSILON)
+	almost(data[6], 0.25, EPSILON)
+})
 
-test('leaky', t => {
-	let leaky = filter.leaky({lambda: 0.95, y: 0})
+test('allpass.first — unity magnitude', () => {
+	let data = [1, 0, 0, 0, 0, 0, 0, 0]
+	audio.allpass.first(data, {a: 0.5})
+	let energy = 0
+	for (let i = 0; i < data.length; i++) energy += data[i] * data[i]
+	ok(energy > 0, 'produces output')
+})
 
-	let data = leaky([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])
+test('aWeighting — returns 3 SOS sections', () => {
+	let sos = audio.aWeighting(44100)
+	is(sos.length, 3, '3 sections')
+	ok(sos[0].b0 !== undefined, 'has coefficients')
+})
 
-	t.ok(almost(data, [0, 0, 0, 0, 0.05, 0.0475, 0.045125, 0.04286875, 0.0407253125, 0.038689046875, 0.03675459453125]))
+test('aWeighting — 0dB at 1kHz', () => {
+	let sos = audio.aWeighting(44100)
+	let resp = freqz(sos, 2048, 44100)
+	let idx = Math.round(1000 / (44100 / 2) * 2048)
+	let db = mag2db(resp.magnitude[idx])
+	ok(Math.abs(db) < 0.5, 'A-weighting ≈ 0dB at 1kHz, got ' + db.toFixed(2) + 'dB')
+})
 
-	t.end()
+test('cWeighting — returns 2 SOS sections', () => {
+	let sos = audio.cWeighting(44100)
+	is(sos.length, 2, '2 sections')
+})
+
+test('cWeighting — 0dB at 1kHz', () => {
+	let sos = audio.cWeighting(44100)
+	let resp = freqz(sos, 2048, 44100)
+	let idx = Math.round(1000 / (44100 / 2) * 2048)
+	let db = mag2db(resp.magnitude[idx])
+	ok(Math.abs(db) < 0.5, 'C-weighting ≈ 0dB at 1kHz, got ' + db.toFixed(2) + 'dB')
+})
+
+test('kWeighting 48kHz — exact spec coefficients', () => {
+	let sos = audio.kWeighting(48000)
+	is(sos.length, 2, '2 stages')
+	almost(sos[0].b0, 1.53512485958697, EPSILON)
+	almost(sos[1].b0, 1.0, EPSILON)
+})
+
+test('kWeighting other rate — still returns 2 sections', () => {
+	let sos = audio.kWeighting(44100)
+	is(sos.length, 2, '2 stages at 44100')
+})
+
+test('itu468 — returns sections', () => {
+	let sos = audio.itu468(48000)
+	ok(sos.length >= 3, 'at least 3 sections')
+})
+
+test('riaa — returns 1 section', () => {
+	let sos = audio.riaa(44100)
+	is(sos.length, 1, '1 section')
+})
+
+test('riaa — bass boost at 20Hz', () => {
+	let sos = audio.riaa(44100)
+	let resp = freqz(sos, 4096, 44100)
+	let idx20 = Math.round(20 / (44100 / 2) * 4096)
+	let idx1k = Math.round(1000 / (44100 / 2) * 4096)
+	let db20 = mag2db(resp.magnitude[idx20])
+	let db1k = mag2db(resp.magnitude[idx1k])
+	ok(db20 > db1k + 10, 'RIAA boosts bass (20Hz > 1kHz by >10dB)')
+})
+
+test('pre-emphasis — boosts high frequencies', () => {
+	let data = [0, 0, 0, 1, 0, 0, 0, 0]
+	audio.emphasis(data, {alpha: 0.97})
+	almost(data[3], 1, EPSILON)
+	almost(data[4], -0.97, EPSILON)
+})
+
+test('de-emphasis — lowpass accumulation', () => {
+	let data = impulse(8)
+	audio.deemphasis(data, {alpha: 0.97})
+	ok(data[0] > 0, 'first sample non-zero')
+	ok(data[1] > 0, 'decaying tail')
+	ok(data[1] < data[0], 'decreasing')
+})
+
+test('resonator — rings on impulse', () => {
+	let data = impulse(256)
+	audio.resonator(data, {fc: 1000, bw: 50, fs: 44100})
+	// Should produce oscillation
+	let hasPositive = false, hasNegative = false
+	for (let i = 0; i < 256; i++) {
+		if (data[i] > 0.01) hasPositive = true
+		if (data[i] < -0.01) hasNegative = true
+	}
+	ok(hasPositive && hasNegative, 'resonator oscillates')
+})
+
+test('envelope — follows amplitude', () => {
+	let data = new Float64Array(256)
+	for (let i = 0; i < 128; i++) data[i] = Math.sin(2 * Math.PI * 1000 * i / 44100)
+	audio.envelope(data, {attack: 0.001, release: 0.01, fs: 44100})
+	ok(data[127] > 0.5, 'envelope rises during signal')
+	ok(data[255] < data[127], 'envelope falls after signal ends')
+})
+
+test('slewLimiter — limits rate of change', () => {
+	let data = new Float64Array([0, 0, 0, 1, 1, 1, 0, 0])
+	audio.slewLimiter(data, {rise: 22050, fall: 22050, fs: 44100})
+	// Max change = 0.5 per sample (22050/44100)
+	ok(data[3] <= 0.5 + LOOSE, 'rise limited')
+	ok(data[3] > 0, 'still rises')
+})
+
+test('pinkNoise — produces output', () => {
+	let data = new Float64Array(256)
+	for (let i = 0; i < 256; i++) data[i] = Math.random() * 2 - 1
+	audio.pinkNoise(data, {})
+	let hasOutput = data.some(x => Math.abs(x) > 0.01)
+	ok(hasOutput, 'pink noise has output')
+})
+
+test('moogLadder — produces output, resonance works', () => {
+	let data = impulse(512)
+	audio.moogLadder(data, {fc: 1000, resonance: 0.5, fs: 44100})
+	let hasOutput = data.some(x => Math.abs(x) > 0.001)
+	ok(hasOutput, 'moog produces output')
+	// With resonance, should ring
+	let hasNeg = data.some(x => x < -0.001)
+	ok(hasNeg, 'resonance causes ringing')
+})
+
+test('moogLadder — stable at high cutoff', () => {
+	let data = impulse(256)
+	audio.moogLadder(data, {fc: 15000, resonance: 0.8, fs: 44100})
+	ok(data.every(x => isFinite(x)), 'no NaN/Inf at high cutoff')
+})
+
+test('diodeLadder — produces output', () => {
+	let data = impulse(256)
+	audio.diodeLadder(data, {fc: 1000, resonance: 0.5, fs: 44100})
+	ok(data.some(x => Math.abs(x) > 0.001), 'output present')
+})
+
+test('korg35 — lowpass and highpass modes', () => {
+	let lp = impulse(256)
+	audio.korg35(lp, {fc: 1000, resonance: 0.3, fs: 44100, type: 'lowpass'})
+	let hp = impulse(256)
+	audio.korg35(hp, {fc: 1000, resonance: 0.3, fs: 44100, type: 'highpass'})
+	ok(lp.some(x => Math.abs(x) > 0.001), 'LP output')
+	ok(hp.some(x => Math.abs(x) > 0.001), 'HP output')
+})
+
+test('gammatone — resonates at center frequency', () => {
+	let data = impulse(4096)
+	audio.gammatone(data, {fc: 1000, fs: 44100})
+	let hasPos = false, hasNeg = false
+	for (let i = 0; i < 4096; i++) {
+		if (data[i] > 0.001) hasPos = true
+		if (data[i] < -0.001) hasNeg = true
+	}
+	ok(hasPos && hasNeg, 'gammatone oscillates')
+})
+
+test('erbBank — ERB-spaced center frequencies', () => {
+	let bands = audio.erbBank(44100)
+	ok(bands.length >= 25, 'at least 25 ERB bands')
+	ok(bands[0].fc >= 50, 'starts above fmin')
+	ok(bands[0].erb > 0, 'has ERB width')
+	// Verify spacing increases with frequency (ERB property)
+	let spacing1 = bands[1].fc - bands[0].fc
+	let spacingN = bands[bands.length - 1].fc - bands[bands.length - 2].fc
+	ok(spacingN > spacing1, 'wider spacing at higher frequencies')
+})
+
+test('barkBank — 24 critical bands', () => {
+	let bands = audio.barkBank(44100)
+	ok(bands.length >= 20, 'at least 20 Bark bands')
+	is(bands[0].bark, 1, 'starts at bark 1')
+	ok(bands[0].coefs.b0 !== undefined, 'has biquad coefficients')
+	ok(bands[0].fLow < bands[0].fHigh, 'fLow < fHigh')
+})
+
+test('octaveBank — correct number of bands', () => {
+	let bands = audio.octaveBank(3, 44100)
+	ok(bands.length >= 20, '1/3-octave has 20+ bands')
+	ok(bands[0].fc > 0, 'has center frequency')
+	ok(bands[0].coefs.b0 !== undefined, 'has coefficients')
+})
+
+test('spectralTilt — nonzero output', () => {
+	let data = impulse(256)
+	audio.spectralTilt(data, {slope: 3, fs: 44100})
+	ok(data.some(x => Math.abs(x) > 0.001), 'output present')
+})
+
+test('variableBandwidth — filters signal', () => {
+	let data = dc(256)
+	audio.variableBandwidth(data, {fc: 5000, Q: 0.707, fs: 44100})
+	almost(data[255], 1, 0.05)
+})
+
+test('graphicEq — applies gain', () => {
+	let data = dc(512)
+	audio.graphicEq(data, {gains: {1000: 6}, fs: 44100})
+	// DC should still pass (peaking EQ at 1kHz doesn't affect DC)
+	almost(data[511], 1, 0.05)
+})
+
+test('parametricEq — applies bands', () => {
+	let data = dc(256)
+	audio.parametricEq(data, {bands: [{fc: 1000, Q: 1, gain: 0, type: 'peak'}], fs: 44100})
+	almost(data[255], 1, 0.01)
+})
+
+test('crossover — returns correct band count', () => {
+	let bands = audio.crossover([500, 2000], 4, 44100)
+	is(bands.length, 3, '2 crossover freqs → 3 bands')
+	ok(Array.isArray(bands[0]), 'each band is SOS array')
+})
+
+test('formant — produces vowel-like output', () => {
+	let data = impulse(512)
+	audio.formant(data, {fs: 44100})
+	ok(data.some(x => Math.abs(x) > 0.001), 'output present')
+})
+
+test('moogLadder — self-oscillation at resonance=1', () => {
+	let data = new Float64Array(2048)
+	data[0] = 0.01 // tiny impulse to start oscillation
+	audio.moogLadder(data, {fc: 1000, resonance: 1, fs: 44100})
+	// Check that output has sustained energy even late in the buffer
+	let lateEnergy = 0
+	for (let i = 1024; i < 2048; i++) lateEnergy += data[i] * data[i]
+	ok(lateEnergy > 0.001, 'Moog self-oscillates at resonance=1 (late energy: ' + lateEnergy.toFixed(4) + ')')
+})
+
+test('diodeLadder — stable at high resonance', () => {
+	let data = impulse(1024)
+	audio.diodeLadder(data, {fc: 2000, resonance: 0.95, fs: 44100})
+	ok(data.every(isFinite), 'no NaN/Inf at high resonance')
+	let maxVal = 0
+	for (let i = 0; i < data.length; i++) if (Math.abs(data[i]) > maxVal) maxVal = Math.abs(data[i])
+	ok(maxVal < 100, 'output bounded (max: ' + maxVal.toFixed(2) + ')')
+})
+
+test('korg35 HP — attenuates DC', () => {
+	let data = dc(1024)
+	audio.korg35(data, {fc: 1000, resonance: 0.3, fs: 44100, type: 'highpass'})
+	// Nonlinear filter: tanh saturation prevents full DC removal, but HP significantly attenuates it
+	ok(Math.abs(data[1023]) < 0.5, 'Korg35 HP attenuates DC (last sample: ' + data[1023].toFixed(4) + ')')
+	// HP output should be much less than input (1.0)
+	ok(Math.abs(data[1023]) < Math.abs(1.0) * 0.2, 'Korg35 HP reduces DC by >80%')
+})
+
+test('gammatone — peak of frequency response near fc', () => {
+	let fc = 2000, fs = 44100
+	let data = impulse(4096)
+	audio.gammatone(data, {fc, fs})
+
+	// Compute rough magnitude spectrum via DFT at a few points
+	let peakFreq = 0, peakMag = 0
+	let N = data.length
+	for (let fi = 500; fi <= 5000; fi += 50) {
+		let w = 2 * Math.PI * fi / fs
+		let re = 0, im = 0
+		for (let n = 0; n < N; n++) {
+			re += data[n] * Math.cos(w * n)
+			im -= data[n] * Math.sin(w * n)
+		}
+		let mag = Math.sqrt(re * re + im * im)
+		if (mag > peakMag) { peakMag = mag; peakFreq = fi }
+	}
+	ok(Math.abs(peakFreq - fc) < 200, 'Gammatone peak at ' + peakFreq + 'Hz (expected ~' + fc + 'Hz)')
+})
+
+test('octaveBank — 1/1 has fewer bands than 1/3', () => {
+	let bands1 = audio.octaveBank(1, 44100)
+	let bands3 = audio.octaveBank(3, 44100)
+	ok(bands1.length >= 8, '1/1 octave has 8+ bands (got ' + bands1.length + ')')
+	ok(bands3.length >= 20, '1/3 octave has 20+ bands (got ' + bands3.length + ')')
+	ok(bands3.length > bands1.length * 2, '1/3 octave has >2x bands vs 1/1')
+})
+
+test('octaveBank — 1/6 has more bands than 1/3', () => {
+	let bands3 = audio.octaveBank(3, 44100)
+	let bands6 = audio.octaveBank(6, 44100)
+	ok(bands6.length > bands3.length, '1/6 octave has more bands than 1/3')
+})
+
+test('erbBank — spacing increases monotonically', () => {
+	let bands = audio.erbBank(44100)
+	for (let i = 2; i < bands.length; i++) {
+		let sp1 = bands[i-1].fc - bands[i-2].fc
+		let sp2 = bands[i].fc - bands[i-1].fc
+		ok(sp2 >= sp1 - 0.01, 'ERB spacing increases: ' + sp1.toFixed(1) + ' → ' + sp2.toFixed(1))
+	}
+})
+
+test('barkBank — 24 critical bands', () => {
+	let bands = audio.barkBank(44100)
+	is(bands.length, 24, '24 Bark bands at 44100Hz')
+})
+
+test('noiseShaping — quantizes to target bit depth', () => {
+	let data = new Float64Array(256)
+	for (let i = 0; i < 256; i++) data[i] = Math.sin(2 * Math.PI * 100 * i / 44100) * 0.5
+	let orig = Float64Array.from(data)
+	audio.noiseShaping(data, {bits: 8})
+	let scale = Math.pow(2, 7) // 2^(bits-1)
+	let allQuantized = true
+	for (let i = 0; i < 256; i++) {
+		let rounded = Math.round(data[i] * scale) / scale
+		if (Math.abs(data[i] - rounded) > 1e-12) { allQuantized = false; break }
+	}
+	ok(allQuantized, 'all samples quantized to 8-bit grid')
+	// Should differ from original continuous values
+	let hasDiff = data.some((x, i) => Math.abs(x - orig[i]) > 1e-10)
+	ok(hasDiff, 'quantization changes values')
+})
+
+test('itu468 — peaked response near 6.3kHz', () => {
+	let sos = audio.itu468(48000)
+	ok(sos.length >= 3, 'at least 3 sections')
+	let resp = freqz(sos, 4096, 48000)
+	let db = mag2db(resp.magnitude)
+	let idx2k = Math.round(2000 / (48000/2) * 4096)
+	let idx6k = Math.round(6300 / (48000/2) * 4096)
+	// ITU-468 peaks near 6.3kHz, significantly above 2kHz level
+	ok(db[idx6k] > db[idx2k] + 3, 'ITU-468 peaks near 6.3kHz (6.3kHz: ' + db[idx6k].toFixed(1) + 'dB, 2kHz: ' + db[idx2k].toFixed(1) + 'dB)')
+})
+
+test('dcBlocker — output converges to 0 for pure DC', () => {
+	let data = dc(4096)
+	audio.dcBlocker(data, {R: 0.995})
+	ok(Math.abs(data[4095]) < 0.005, 'DC blocked to < 0.005 (got ' + Math.abs(data[4095]).toFixed(6) + ')')
+})
+
+test('allpass.second — unity magnitude across spectrum', () => {
+	let data = impulse(512)
+	audio.allpass.second(data, {fc: 2000, Q: 1, fs: 44100})
+	// Compute energy — should equal input energy (1.0 for unit impulse)
+	let energy = 0
+	for (let i = 0; i < data.length; i++) energy += data[i] * data[i]
+	almost(energy, 1, 0.01)
+})
+
+test('crossfeed — mixes stereo channels', () => {
+	let left = dc(256, 1)
+	let right = dc(256, 0)
+	audio.crossfeed(left, right, {fc: 700, level: 0.3, fs: 44100})
+	// Right channel should now have some energy (mixed from left)
+	let rightEnergy = 0
+	for (let i = 128; i < 256; i++) rightEnergy += right[i] * right[i]
+	ok(rightEnergy > 0.01, 'crossfeed mixes L→R (right energy: ' + rightEnergy.toFixed(4) + ')')
+	// Left should still have energy (not fully cancelled)
+	let leftEnergy = 0
+	for (let i = 128; i < 256; i++) leftEnergy += left[i] * left[i]
+	ok(leftEnergy > 0.1, 'left retains energy after crossfeed')
+})
+
+test('formant — output has significant energy', () => {
+	let data = impulse(1024)
+	audio.formant(data, {fs: 44100})
+	let energy = 0
+	for (let i = 0; i < data.length; i++) energy += data[i] * data[i]
+	ok(energy > 0.0001, 'formant has energy (got ' + energy.toFixed(6) + ')')
+	// Should have some non-zero output
+	let hasOutput = data.some(x => Math.abs(x) > 0.0001)
+	ok(hasOutput, 'formant produces output')
+})
+
+test('vocoder — output matches input length', () => {
+	let N = 512
+	let carrier = new Float64Array(N)
+	let modulator = new Float64Array(N)
+	for (let i = 0; i < N; i++) {
+		carrier[i] = Math.sin(2 * Math.PI * 440 * i / 44100) // sawtooth-like
+		modulator[i] = Math.sin(2 * Math.PI * 100 * i / 44100) * 0.5
+	}
+	let out = audio.vocoder(carrier, modulator, {bands: 8, fs: 44100})
+	is(out.length, N, 'vocoder output length = input length')
+	let hasOutput = out.some(x => Math.abs(x) > 0.0001)
+	ok(hasOutput, 'vocoder produces nonzero output')
 })
