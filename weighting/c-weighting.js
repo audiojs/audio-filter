@@ -1,21 +1,25 @@
+import dfFilter from 'digital-filter/core/filter.js'
+
 let {PI, tan, cos, sin, sqrt} = Math
 
-export default function cWeighting(fs) {
-	if (!fs) fs = 44100
+export default function cWeighting(data, params = {}) {
+	let fs = params.fs || 44100
+	if (params._fs !== fs) {
+		params._fs = fs
+		params._sos = coefs(fs)
+		params._state = params._sos.map(() => [0, 0])
+	}
+	return dfFilter(data, { coefs: params._sos, state: params._state })
+}
 
-	// IEC 61672 C-weighting analog prototype
-	// H(s) = K * s^2 / ((s+w1)^2 * (s+w4)^2)
+export function coefs(fs = 44100) {
+	// IEC 61672 C-weighting: H(s) = K * s^2 / ((s+w1)^2 * (s+w4)^2)
 	// 2 zeros at DC, double poles at 20.6 Hz and 12194 Hz
 	let f1 = 20.598997, f4 = 12194.217
 	let C = 2 * fs
 
 	let w1 = prewarp(f1, fs), w4 = prewarp(f4, fs)
-
-	// Section 1: s^2 / (s+w1)^2 — double-pole HPF at 20.6 Hz
-	let s1 = hpDouble(w1, C)
-
-	// Section 2: w4^2 / (s+w4)^2 — double-pole LPF at 12194 Hz
-	let s2 = lpDouble(w4, C)
+	let s1 = hpDouble(w1, C), s2 = lpDouble(w4, C)
 
 	// Normalize to 0 dB at 1 kHz
 	let g = evalMag([s1, s2], 1000 / fs)

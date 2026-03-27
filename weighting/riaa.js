@@ -1,39 +1,34 @@
+import dfFilter from 'digital-filter/core/filter.js'
+
 let {PI, tan, cos, sin, sqrt} = Math
 
-export default function riaa(fs) {
-	if (!fs) fs = 44100
+export default function riaa(data, params = {}) {
+	let fs = params.fs || 44100
+	if (params._fs !== fs) {
+		params._fs = fs
+		params._sos = coefs(fs)
+		params._state = params._sos.map(() => [0, 0])
+	}
+	return dfFilter(data, { coefs: params._sos, state: params._state })
+}
 
-	// RIAA playback (de-emphasis) equalization
-	// H(s) = (1 + s*T2) / ((1 + s*T1) * (1 + s*T3))
-	// Time constants → corner frequencies
+export function coefs(fs = 44100) {
+	// RIAA playback (de-emphasis): H(s) = (1 + s*T2) / ((1 + s*T1) * (1 + s*T3))
 	let T1 = 3180e-6, T2 = 318e-6, T3 = 75e-6
 	let fp1 = 1 / (2 * PI * T1)   // 50.05 Hz  (pole)
 	let fz  = 1 / (2 * PI * T2)   // 500.5 Hz  (zero)
 	let fp2 = 1 / (2 * PI * T3)   // 2122 Hz   (pole)
 
-	// Prewarp analog corner frequencies
-	let Wp1 = prewarp(fp1, fs)
-	let Wz  = prewarp(fz, fs)
-	let Wp2 = prewarp(fp2, fs)
+	let Wp1 = prewarp(fp1, fs), Wz = prewarp(fz, fs), Wp2 = prewarp(fp2, fs)
 	let C = 2 * fs
 
-	// Bilinear transform: s = C(1-z^-1)/(1+z^-1)
-	// num: C(1-z^-1) + Wz(1+z^-1) = (C+Wz) + (Wz-C)z^-1
-	// den: ((C+Wp1) + (Wp1-C)z^-1) * ((C+Wp2) + (Wp2-C)z^-1)
-	let n0 = C + Wz
-	let n1 = Wz - C
-
+	// Bilinear transform of 1st-order sections folded into one biquad
+	let n0 = C + Wz, n1 = Wz - C
 	let d0 = (C + Wp1) * (C + Wp2)
 	let d1 = (C + Wp1) * (Wp2 - C) + (Wp1 - C) * (C + Wp2)
 	let d2 = (Wp1 - C) * (Wp2 - C)
 
-	let s1 = {
-		b0: n0 / d0,
-		b1: n1 / d0,
-		b2: 0,
-		a1: d1 / d0,
-		a2: d2 / d0
-	}
+	let s1 = { b0: n0/d0, b1: n1/d0, b2: 0, a1: d1/d0, a2: d2/d0 }
 
 	// Normalize to 0 dB at 1 kHz
 	let g = evalMag([s1], 1000 / fs)

@@ -1,21 +1,27 @@
+import dfFilter from 'digital-filter/core/filter.js'
+
 let {PI, tan, cos, sin, sqrt} = Math
 
-export default function aWeighting(fs) {
-	if (!fs) fs = 44100
+export default function aWeighting(data, params = {}) {
+	let fs = params.fs || 44100
+	if (params._fs !== fs) {
+		params._fs = fs
+		params._sos = coefs(fs)
+		params._state = params._sos.map(() => [0, 0])
+	}
+	return dfFilter(data, { coefs: params._sos, state: params._state })
+}
 
+export function coefs(fs = 44100) {
 	// IEC 61672 analog prototype frequencies (Hz)
 	let f1 = 20.598997, f2 = 107.65265, f3 = 737.86223, f4 = 12194.217
 	let C = 2 * fs
 
-	// Prewarp analog corner frequencies
 	let w1 = prewarp(f1, fs), w2 = prewarp(f2, fs)
 	let w3 = prewarp(f3, fs), w4 = prewarp(f4, fs)
 
 	// H(s) = K * s^4 / ((s+w1)^2 * (s+w2) * (s+w3) * (s+w4)^2)
-	// Decompose into 3 biquad sections:
-	//   s^2 / (s+w1)^2       — double-pole HPF at 20.6 Hz, 2 zeros at DC
-	//   s^2 / ((s+w2)(s+w3)) — mixed-pole HPF, 2 zeros at DC
-	//   w4^2 / (s+w4)^2      — double-pole LPF at 12194 Hz
+	// 3 biquad sections: double-pole HPF, mixed-pole HPF, double-pole LPF
 	let s1 = hpDouble(w1, C)
 	let s2 = hpPair(w2, w3, C)
 	let s3 = lpDouble(w4, C)

@@ -1,23 +1,20 @@
 # audio-filter
 
-Named audio filters for JavaScript — [weighting](#weighting), [auditory](#auditory), [analog](#analog), [speech](#speech), [eq](#eq), [effect](#effect).
+Canonical audio filters implementations known to audio engineers by name.
+Covering 6 domains:
+[weighting](#weighting), [auditory](#auditory), [analog](#analog), [speech](#speech), [eq](#eq), [effect](#effect).
+
+## Install
 
 ```
 npm install audio-filter
 ```
 
-
-## What are audio filters?
-
-General filter design ([digital-filter](https://github.com/audiojs/digital-filter)) asks: *given a specification — passband, stopband, ripple — what coefficients produce it?* Audio filters are different: they are named, historically grounded, each with a designer, a standard, or a circuit. A Butterworth is a mathematical abstraction; a Moog ladder is a specific physical circuit from 1965. A-weighting is an IEC standard with five decimal places of precision. These are the filters audio engineers recognize by name.
-
-This package collects canonical implementations of those filters, organized into six domains.
-
-
-## Install
-
 ```js
-import * as af from 'audio-filter'                  // everything
+// import everything
+import * as filter from 'audio-filter'
+
+// import individually
 import { aWeighting, kWeighting } from 'audio-filter/weighting'
 import { gammatone, barkBank } from 'audio-filter/auditory'
 import { moogLadder, korg35 } from 'audio-filter/analog'

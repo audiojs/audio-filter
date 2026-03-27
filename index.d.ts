@@ -9,23 +9,31 @@ export interface BiquadCoef { b0: number; b1: number; b2: number; a1: number; a2
 export type SOS = BiquadCoef[]
 
 // ---------------------------------------------------------------------------
-// Weighting — return SOS arrays for use with digital-filter
+// Weighting — in-place processors (state in params)
 // ---------------------------------------------------------------------------
 
-/** IEC 61672 A-weighting filter */
-export function aWeighting(fs?: number): SOS
+export interface WeightingParams { fs?: number; [key: string]: unknown }
 
-/** IEC 61672 C-weighting filter */
-export function cWeighting(fs?: number): SOS
+/** IEC 61672 A-weighting, in-place */
+export function aWeighting(data: Buf, params?: WeightingParams): Buf
+/** IEC 61672 A-weighting SOS coefficients (for analysis with digital-filter) */
+export function aWeightingCoefs(fs?: number): SOS
 
-/** ITU-R BS.1770 K-weighting filter (two-stage: pre-filter + RLB) */
-export function kWeighting(fs?: number): SOS
+/** IEC 61672 C-weighting, in-place */
+export function cWeighting(data: Buf, params?: WeightingParams): Buf
+export function cWeightingCoefs(fs?: number): SOS
 
-/** ITU-R 468 noise-weighting filter */
-export function itu468(fs?: number): SOS
+/** ITU-R BS.1770 K-weighting, in-place */
+export function kWeighting(data: Buf, params?: WeightingParams): Buf
+export function kWeightingCoefs(fs?: number): SOS
 
-/** RIAA equalization filter (vinyl playback) */
-export function riaa(fs?: number): SOS
+/** ITU-R 468 noise-weighting, in-place */
+export function itu468(data: Buf, params?: WeightingParams): Buf
+export function itu468Coefs(fs?: number): SOS
+
+/** RIAA playback equalization, in-place */
+export function riaa(data: Buf, params?: WeightingParams): Buf
+export function riaaCoefs(fs?: number): SOS
 
 // ---------------------------------------------------------------------------
 // Auditory — cochlear / perceptual models

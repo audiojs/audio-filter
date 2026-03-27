@@ -10,6 +10,7 @@
  */
 import { freqz, mag2db, groupDelay, impulseResponse } from 'digital-filter'
 import * as af from '../index.js'
+import { aWeightingCoefs, cWeightingCoefs, kWeightingCoefs, itu468Coefs, riaaCoefs } from '../weighting/index.js'
 import { writeFileSync, mkdirSync } from 'node:fs'
 
 let FS = 44100, NF = 2048
@@ -359,11 +360,11 @@ function plotBank (name, bands, title) {
 	let LP = { x: 55, y: 12, w: 330, h: 180 }
 	let RP = { x: 445, y: 12, w: 330, h: 180 }
 	let curves = [
-		['A-weighting', af.aWeighting(FS), C[0]],
-		['C-weighting', af.cWeighting(FS), C[1]],
-		['K-weighting', af.kWeighting(48000), C[2]],
-		['ITU-R 468',   af.itu468(48000), C[3]],
-		['RIAA',        af.riaa(FS), C[4]],
+		['A-weighting', aWeightingCoefs(FS), C[0]],
+		['C-weighting', cWeightingCoefs(FS), C[1]],
+		['K-weighting', kWeightingCoefs(48000), C[2]],
+		['ITU-R 468',   itu468Coefs(48000), C[3]],
+		['RIAA',        riaaCoefs(FS), C[4]],
 	]
 	let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240" style="font-family:system-ui,-apple-system,sans-serif">\n`
 	s += panel(LP, 'Hz', 'dB', -80, 20, 0) + logXTicks(LP, fTicks, 10, 20000) + dbGrid(LP)
@@ -377,11 +378,11 @@ function plotBank (name, bands, title) {
 	writeFileSync('plots/weighting.svg', s + '</svg>\n')
 }
 
-plotFilter('a-weighting', af.aWeighting(FS), 'A-weighting (IEC 61672)')
-plotFilter('c-weighting', af.cWeighting(FS), 'C-weighting (IEC 61672)')
-plotFilter('k-weighting', af.kWeighting(48000), 'K-weighting (ITU-R BS.1770)')
-plotFilter('itu468', af.itu468(48000), 'ITU-R 468 noise weighting')
-plotFilter('riaa', af.riaa(FS), 'RIAA playback equalization')
+plotFilter('a-weighting', aWeightingCoefs(FS), 'A-weighting (IEC 61672)')
+plotFilter('c-weighting', cWeightingCoefs(FS), 'C-weighting (IEC 61672)')
+plotFilter('k-weighting', kWeightingCoefs(48000), 'K-weighting (ITU-R BS.1770)')
+plotFilter('itu468', itu468Coefs(48000), 'ITU-R 468 noise weighting')
+plotFilter('riaa', riaaCoefs(FS), 'RIAA playback equalization')
 
 // ── Auditory ──
 
