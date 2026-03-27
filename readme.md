@@ -26,57 +26,44 @@ import { dcBlocker, resonator } from 'audio-filter/effect'
 
 ## API
 
-Two shapes. Pick based on what you need back.
-
-### SOS filters — return coefficients
+All filters share one shape:
 
 ```js
-let sos = aWeighting(44100)   // → [{b0, b1, b2, a1, a2}, ...]
+filter(buffer, params)   // → buffer (modified in-place)
 ```
 
-These return an array of biquad sections (SOS). Use with `digital-filter`'s analysis and processing tools:
+Takes a `Float32Array` or `Float64Array`, modifies it in-place, returns it. State is stored in the params object under `_`-prefixed keys — pass the same object on every call and state persists across blocks automatically:
 
 ```js
-import { freqz, mag2db, filter } from 'digital-filter'
-
-let sos  = aWeighting(44100)
-let resp = freqz(sos, 2048, 44100)      // frequency response
-let db   = mag2db(resp.magnitude)       // to dB
-filter(buffer, { coefs: sos })          // apply to audio
-```
-
-Filters in this shape: all [weighting](#weighting) and [crossover](#crossover).
-
-### Processing filters — mutate buffer in-place
-
-```js
-moogLadder(buffer, { fc: 1000, resonance: 0.5, fs: 44100 })
-```
-
-These take a `Float32Array` or `Float64Array` and modify it in-place. State is stored in the params object under `_`-prefixed keys — pass the same object on every call.
-
-```js
-// Block processing — state persists automatically across buffers
 let params = { fc: 1000, resonance: 0.5, fs: 44100 }
 for (let buf of stream) moogLadder(buf, params)
 ```
 
-All [auditory](#auditory), [analog](#analog), [speech](#speech), and [effect](#effect) filters use this shape. Some [eq](#eq) filters too.
+For frequency analysis, weighting filters expose a `*Coefs(fs)` companion that returns the raw SOS array for use with `digital-filter`:
+
+```js
+import { aWeightingCoefs } from 'audio-filter/weighting'
+import { freqz, mag2db } from 'digital-filter'
+
+let sos  = aWeightingCoefs(44100)
+let resp = freqz(sos, 2048, 44100)
+let db   = mag2db(resp.magnitude)
+```
 
 
 ## Weighting
 
-Standard measurement curves. Each is defined by a standards body to a specific curve shape and normalization. All return SOS coefficients.
+Standard measurement curves. Each is defined by a standards body to a specific curve shape and normalization.
 
 ![Weighting filters comparison](plots/weighting.svg)
 
-| filter | standard | normalized | sections |
-|---|---|---|---|
-| `aWeighting` | IEC 61672-1:2013 | 0 dB at 1 kHz | 3 SOS |
-| `cWeighting` | IEC 61672-1:2013 | 0 dB at 1 kHz | 2 SOS |
-| `kWeighting` | ITU-R BS.1770-4:2015 | — | 2 SOS |
-| `itu468` | ITU-R BS.468-4:1986 | +12.2 dB at 6.3 kHz | 4 SOS |
-| `riaa` | RIAA 1954 / IEC 60098 | 0 dB at 1 kHz | 1 SOS |
+| filter | standard | normalized |
+|---|---|---|
+| `aWeighting` | IEC 61672-1:2013 | 0 dB at 1 kHz |
+| `cWeighting` | IEC 61672-1:2013 | 0 dB at 1 kHz |
+| `kWeighting` | ITU-R BS.1770-4:2015 | — |
+| `itu468` | ITU-R BS.468-4:1986 | +12.2 dB at 6.3 kHz |
+| `riaa` | RIAA 1954 / IEC 60098 | 0 dB at 1 kHz |
 
 
 ### A-weighting
@@ -91,11 +78,9 @@ Standard measurement curves. Each is defined by a standards body to a specific c
 
 ```js
 import { aWeighting } from 'audio-filter/weighting'
-import { freqz, mag2db } from 'digital-filter'
 
-let sos  = aWeighting(44100)
-let resp = freqz(sos, 2048, 44100)
-let db   = mag2db(resp.magnitude)   // A-weighted spectrum
+let p = { fs: 44100 }
+for (let buf of stream) aWeighting(buf, p)   // A-weighted stream
 ```
 
 <details>
@@ -123,7 +108,7 @@ let db   = mag2db(resp.magnitude)   // A-weighted spectrum
 | `fs` | 44100 | sample rate |
 
 ```js
-let sos = cWeighting(44100)
+cWeighting(buffer, { fs: 44100 })
 ```
 
 <details>
@@ -152,8 +137,8 @@ let sos = cWeighting(44100)
 ```js
 import { kWeighting } from 'audio-filter/weighting'
 
-let sos = kWeighting(48000)   // exact ITU-R BS.1770 coefficients
-let sos = kWeighting(44100)   // approximated via biquad design
+kWeighting(buffer, { fs: 48000 })   // exact ITU-R BS.1770 coefficients
+kWeighting(buffer, { fs: 44100 })   // approximated via biquad design
 ```
 
 <details>
@@ -180,7 +165,7 @@ let sos = kWeighting(44100)   // approximated via biquad design
 | `fs` | 48000 | sample rate |
 
 ```js
-let sos = itu468(48000)
+itu468(buffer, { fs: 48000 })
 ```
 
 <details>
@@ -208,10 +193,8 @@ let sos = itu468(48000)
 
 ```js
 import { riaa } from 'audio-filter/weighting'
-import { filter } from 'digital-filter'
 
-let sos = riaa(44100)
-filter(phonoSignal, { coefs: sos })   // correct vinyl playback
+riaa(phonoSignal, { fs: 44100 })   // correct vinyl playback
 ```
 
 <details>
