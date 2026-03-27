@@ -13,7 +13,8 @@
     "./effect": "./effect/index.js"
   },
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js",
+    "plots": "node plots/generate.js"
   },
   "repository": {
     "type": "git",
