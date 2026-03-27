@@ -96,3 +96,82 @@ The trade: breadth vs depth. 30 filters at correct-but-not-exhaustive vs 5 filte
 
 **What unlocks everything?**
 The decision already made correctly: flat structure, consistent convention, no classes. What remains uncommitted to: the demo. The demo decides whether this is a developer tool or a product. Build the demo at audiojs.dev with interactive filter selection and frequency response plots — that single page does more distribution than any README. It's reversible: build it or don't. The irreversible: the API shape. It's already correct — don't change it.
+
+## Notes
+
+  ### On Sambandha/Abhidheya/Prayojana:
+
+  Maps cleanly and it's not forced:
+
+  Sambandha	relationship, what-is-this	Intro: what audio filters are, the six categories, what this package is and isn't
+  Abhidheya	the means, the path	Usage: API shapes, block-processing pattern, per-filter reference
+  Prayojana	the goal, the fruit	Filter selection guide: "I need X → use Y", FAQ
+  This is exactly the right organizing spine. A visitor arrives not knowing what they need → learns what exists (Sambandha) → learns how to use it (Abhidheya) → finds the right tool for their job (Prayojana).
+
+  ### On "lovable":
+
+  Current simple style is correct. The "lovable" additions:
+
+  Lead with the plot — the weighting comparison SVG as the first visual. Seeing five curves in one image communicates more than three paragraphs.
+  Personality in one-liners — not "A-weighting: a filter for measurement" but "A-weighting — the curve that models how loud sound feels, not how loud it is. IEC 61672. 0 dB at 1 kHz."
+  The first code example does something real — moogLadder with resonance: 1 and the note that it self-oscillates. Not filter(buffer, params) → // filtered.
+  The category intros tell the story — Weighting: sound measurement. Auditory: the ear as a filter bank. Analog: hardware immortalized in math. Speech: the vocal tract. EQ: shaping the mix. Effect: signal conditioning.
+
+  ### Canonical UX
+  Proposed structure:
+
+```
+  # audio-filter
+
+  [one-liner] [npm badge]
+
+  Named audio filters for JavaScript — [weighting](#weighting), [auditory](#auditory),
+  [analog](#analog), [speech](#speech), [eq](#eq), [effect](#effect).
+
+  [weighting comparison plot — the first visual]
+
+  ## What are audio filters?
+  3 sentences. Audio-domain filters vs filter design (link to digital-filter).
+  Six categories: from measurement standards to analog circuit models.
+
+  ## Install + subpaths
+  npm install. Import examples for each of the 6 subpaths.
+
+  ## API
+
+  ### SOS filters  (return coefficients)
+  ### Processing filters  (mutate buffer in-place)
+  ### Block processing  (state in params)
+
+  ## Weighting
+  [intro: 1 sentence] [comparison plot]
+  | filter | standard | normalized at | use |
+  Each filter: plot + essence + params + minimal example
+  <details> full reference (identity, math, stability, comparison) </details>
+
+  ## Auditory
+  [same pattern]
+
+  ## Analog
+  [same pattern]
+
+  ## Speech
+  [same pattern]
+
+  ## EQ
+  [same pattern]
+
+  ## Effect
+  [same pattern]
+
+  ## Concepts?
+
+  ## Choosing a filter
+  Table: "I need to measure loudness → A-weighting", "I need a synth filter → Moog ladder", etc.
+
+  ## FAQ
+
+  ## Common mistakes
+
+  ## See also
+```

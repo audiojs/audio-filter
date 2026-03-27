@@ -12,6 +12,7 @@
     "./eq": "./eq/index.js",
     "./effect": "./effect/index.js"
   },
+  "types": "./index.d.ts",
   "scripts": {
     "test": "node test.js",
     "plots": "node plots/generate.js"
