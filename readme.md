@@ -6,7 +6,6 @@ Named audio filters for JavaScript — [weighting](#weighting), [auditory](#audi
 npm install audio-filter
 ```
 
----
 
 ## What are audio filters?
 
@@ -14,7 +13,6 @@ General filter design ([digital-filter](https://github.com/audiojs/digital-filte
 
 This package collects canonical implementations of those filters, organized into six domains.
 
----
 
 ## Install
 
@@ -28,7 +26,6 @@ import { graphicEq, crossover } from 'audio-filter/eq'
 import { dcBlocker, resonator } from 'audio-filter/effect'
 ```
 
----
 
 ## API
 
@@ -69,7 +66,6 @@ for (let buf of stream) moogLadder(buf, params)
 
 All [auditory](#auditory), [analog](#analog), [speech](#speech), and [effect](#effect) filters use this shape. Some [eq](#eq) filters too.
 
----
 
 ## Weighting
 
@@ -85,7 +81,6 @@ Standard measurement curves. Each is defined by a standards body to a specific c
 | `itu468` | ITU-R BS.468-4:1986 | +12.2 dB at 6.3 kHz | 4 SOS |
 | `riaa` | RIAA 1954 / IEC 60098 | 0 dB at 1 kHz | 1 SOS |
 
----
 
 ### A-weighting
 
@@ -119,7 +114,6 @@ let db   = mag2db(resp.magnitude)   // A-weighted spectrum
 
 </details>
 
----
 
 ### C-weighting
 
@@ -147,7 +141,6 @@ let sos = cWeighting(44100)
 
 </details>
 
----
 
 ### K-weighting
 
@@ -178,7 +171,6 @@ let sos = kWeighting(44100)   // approximated via biquad design
 
 </details>
 
----
 
 ### ITU-R 468
 
@@ -206,7 +198,6 @@ let sos = itu468(48000)
 
 </details>
 
----
 
 ### RIAA
 
@@ -238,13 +229,11 @@ filter(phonoSignal, { coefs: sos })   // correct vinyl playback
 
 </details>
 
----
 
 ## Auditory
 
 Models of the human auditory system — how the cochlea and brain decompose sound into frequency channels. Used in psychoacoustics, music information retrieval, and hearing aid design.
 
----
 
 ### Gammatone
 
@@ -281,7 +270,6 @@ Reuse `params` across blocks — state in `params._s`, gain cached in `params._g
 
 </details>
 
----
 
 ### Octave bank
 
@@ -321,7 +309,6 @@ for (let band of bands) {
 
 </details>
 
----
 
 ### ERB bank
 
@@ -364,7 +351,6 @@ for (let buf of stream) {
 
 </details>
 
----
 
 ### Bark bank
 
@@ -401,13 +387,11 @@ for (let band of bands) {
 
 </details>
 
----
 
 ## Analog
 
 Discrete-time models of analog circuits — each named after the hardware it replicates. Nonlinear, stateful, process in-place. The filters in synthesizers.
 
----
 
 ### Moog ladder
 
@@ -446,7 +430,6 @@ moogLadder(silent, { fc: 1000, resonance: 1, fs: 44100 })
 
 </details>
 
----
 
 ### Diode ladder
 
@@ -478,7 +461,6 @@ diodeLadder(buffer, params)
 
 </details>
 
----
 
 ### Korg35
 
@@ -511,13 +493,11 @@ korg35(buffer, { fc: 1000, resonance: 0.5, type: 'highpass', fs: 44100 })
 
 </details>
 
----
 
 ## Speech
 
 Filters that model or process the human vocal tract — from vowel synthesis to spectral voice coding.
 
----
 
 ### Formant
 
@@ -555,7 +535,6 @@ formant(excitation, {
 
 </details>
 
----
 
 ### Vocoder
 
@@ -589,13 +568,11 @@ let output = vocoder(carrier, modulator, { bands: 16, fs: 44100 })
 
 </details>
 
----
 
 ## EQ
 
 Equalization and frequency routing — from parametric studio EQ to speaker crossover networks.
 
----
 
 ### Graphic EQ
 
@@ -619,7 +596,6 @@ graphicEq(buffer, {
 })
 ```
 
----
 
 ### Parametric EQ
 
@@ -646,7 +622,6 @@ parametricEq(buffer, {
 })
 ```
 
----
 
 ### Crossover
 
@@ -684,7 +659,6 @@ let hi  = Float64Array.from(buffer); filter(hi,  { coefs: bands[2] })
 
 </details>
 
----
 
 ### Crossfeed
 
@@ -716,13 +690,11 @@ crossfeed(left, right, { fc: 700, level: 0.3, fs: 44100 })
 
 </details>
 
----
 
 ## Effect
 
 Signal processing utilities — conditioning, shaping, and analyzing audio signals.
 
----
 
 ### DC blocker
 
@@ -743,7 +715,6 @@ let params = { R: 0.995 }
 dcBlocker(buffer, params)
 ```
 
----
 
 ### Comb filter
 
@@ -763,7 +734,6 @@ import { comb } from 'audio-filter/effect'
 comb(buffer, { delay: 100, gain: 0.6, type: 'feedback' })
 ```
 
----
 
 ### Allpass
 
@@ -778,7 +748,6 @@ allpass.first(buffer, { a: 0.5 })                          // coefficient a
 allpass.second(buffer, { fc: 1000, Q: 1, fs: 44100 })      // center fc, quality Q
 ```
 
----
 
 ### Pre-emphasis / de-emphasis
 
@@ -799,7 +768,6 @@ emphasis(buffer, { alpha: 0.97 })    // before encoding
 deemphasis(buffer, { alpha: 0.97 })  // after decoding — exact inverse
 ```
 
----
 
 ### Resonator
 
@@ -823,7 +791,6 @@ resonator(buffer, { fc: 440, bw: 20, fs: 44100 })
 
 Unlike a peaking EQ section, peak gain is always 0 dB regardless of Q — stable for synthesis use.
 
----
 
 ### Envelope follower
 
@@ -844,7 +811,6 @@ let params = { attack: 0.001, release: 0.05, fs: 44100 }
 envelope(buffer, params)   // buffer replaced with envelope signal (0–1)
 ```
 
----
 
 ### Slew limiter
 
@@ -864,7 +830,6 @@ import { slewLimiter } from 'audio-filter/effect'
 slewLimiter(buffer, { rise: 500, fall: 200, fs: 44100 })
 ```
 
----
 
 ### Noise shaping
 
@@ -882,7 +847,6 @@ import { noiseShaping } from 'audio-filter/effect'
 noiseShaping(buffer, { bits: 16 })   // dither to 16-bit, noise shaped above 10 kHz
 ```
 
----
 
 ### Pink noise
 
@@ -898,7 +862,6 @@ for (let i = 0; i < buf.length; i++) buf[i] = Math.random() * 2 - 1
 pinkNoise(buf, {})   // white → pink (−3 dB/oct spectral slope)
 ```
 
----
 
 ### Spectral tilt
 
@@ -918,7 +881,6 @@ spectralTilt(buffer, { slope: -3, fs: 44100 })   // −3 dB/oct: brownian noise 
 spectralTilt(buffer, { slope: +3, fs: 44100 })   // +3 dB/oct: pre-emphasis for coding
 ```
 
----
 
 ### Variable bandwidth
 
@@ -938,7 +900,6 @@ import { variableBandwidth } from 'audio-filter/effect'
 variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 ```
 
----
 
 ## Filter selection guide
 
@@ -970,7 +931,6 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 | Generate pink / brown noise | `pinkNoise` + `spectralTilt` |
 | Tilt spectrum for tone shaping | `spectralTilt` |
 
----
 
 ## See also
 
