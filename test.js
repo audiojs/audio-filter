@@ -5,6 +5,20 @@ import { biquad, filter, freqz, mag2db } from 'digital-filter'
 let EPSILON = 1e-10
 let LOOSE = 1e-4
 
+// Evaluate SOS filter magnitude in dB at exact frequency f Hz
+function magDB(sos, f, fs) {
+	let w = 2 * Math.PI * f / fs
+	let magSq = 1
+	for (let c of sos) {
+		let br = c.b0 + c.b1 * Math.cos(w)   + c.b2 * Math.cos(2*w)
+		let bi =      -(c.b1 * Math.sin(w)   + c.b2 * Math.sin(2*w))
+		let ar = 1   + c.a1 * Math.cos(w)   + c.a2 * Math.cos(2*w)
+		let ai =      -(c.a1 * Math.sin(w)   + c.a2 * Math.sin(2*w))
+		magSq *= (br*br + bi*bi) / (ar*ar + ai*ai)
+	}
+	return 10 * Math.log10(magSq)
+}
+
 function impulse (n) {
 	let d = new Float64Array(n || 64)
 	d[0] = 1
@@ -45,6 +59,48 @@ test('allpass.first — unity magnitude', () => {
 	let energy = 0
 	for (let i = 0; i < data.length; i++) energy += data[i] * data[i]
 	ok(energy > 0, 'produces output')
+})
+
+// IEC 61672-1:2013 Table 2 — A-weighting nominal values (dB)
+const IEC_A = {
+	31.5: -39.4, 63: -26.2, 125: -16.1, 250: -8.6, 500: -3.2,
+	1000: 0.0, 2000: 1.2, 4000: 1.0, 8000: -1.1, 10000: -2.5,
+	16000: -6.6, 20000: -9.3
+}
+
+// IEC 61672-1:2013 Table 2 — C-weighting nominal values (dB)
+const IEC_C = {
+	31.5: -3.0, 63: -0.8, 125: -0.2, 250: 0.0, 500: 0.0,
+	1000: 0.0, 2000: -0.2, 4000: -0.8, 8000: -3.0
+}
+
+test('aWeighting — IEC 61672 table values at 96kHz', () => {
+	// matched z-transform: ≤10kHz excellent; 16–20kHz within IEC Class 1 (±2 dB)
+	let sos = audio.aWeighting.coefs(96000)
+	for (let [f, expected] of Object.entries(IEC_A)) {
+		let tol = +f >= 16000 ? 1.5 : 0.5
+		let got = magDB(sos, +f, 96000)
+		ok(Math.abs(got - expected) < tol, `A-weighting ${f}Hz: expected ${expected}, got ${got.toFixed(2)} dB`)
+	}
+})
+
+test('aWeighting — IEC 61672 table values at 48kHz', () => {
+	// matched z-transform: ≤8kHz < 1 dB; 10kHz ~1.1 dB (IEC Class 1 boundary);
+	// 16–20kHz: better than bilinear (4 dB vs 12 dB error) but 48kHz is insufficient there
+	let sos = audio.aWeighting.coefs(48000)
+	for (let [f, expected] of Object.entries(IEC_A)) {
+		let tol = +f >= 16000 ? 5.0 : +f >= 10000 ? 1.2 : 1.0
+		let got = magDB(sos, +f, 48000)
+		ok(Math.abs(got - expected) < tol, `A-weighting ${f}Hz@48kHz: expected ${expected}, got ${got.toFixed(2)} dB`)
+	}
+})
+
+test('cWeighting — IEC 61672 table values at 96kHz', () => {
+	let sos = audio.cWeighting.coefs(96000)
+	for (let [f, expected] of Object.entries(IEC_C)) {
+		let got = magDB(sos, +f, 96000)
+		ok(Math.abs(got - expected) < 0.5, `C-weighting ${f}Hz: expected ${expected}, got ${got.toFixed(2)} dB`)
+	}
 })
 
 test('aWeighting — 3 SOS sections via coefs', () => {
