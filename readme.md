@@ -765,6 +765,119 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 | Tilt spectrum for tone shaping | `spectralTilt` |
 
 
+## FAQ
+
+**Why does my filter click when I change `fc` or `resonance`?**
+Biquad coefficients change discontinuously between samples. Use `variableBandwidth` for smooth automated sweeps, or crossfade.
+
+**Why does my Moog/Diode filter blow up?**
+`resonance=1` on Moog is intentional self-oscillation. Diode ladder is stable up to 0.95. Limit input gain before high resonance.
+
+**Does mutating `params` between calls reset state?**
+No — mutating the same object (`params.fc = newFc`) preserves state. Replacing the object (`params = { fc: newFc }`) loses it.
+
+**Why does `.coefs(fs)` return an SOS array instead of one biquad?**
+A-weighting needs 3 second-order sections; a single biquad can't represent a 6-pole response. Pass SOS arrays to `digital-filter`'s `filter()` or `freqz()`.
+
+**What sample rate should I use for accurate A-weighting?**
+96 kHz for IEC Class 1 across the full 20 Hz–20 kHz range. At 48 kHz error grows above 10 kHz (~1 dB at 10 kHz, ~4 dB at 20 kHz).
+
+
+## Recipes
+
+**Chain filters**
+```js
+let p1 = { fc: 200, fs: 44100 }
+let p2 = { R: 0.995 }
+for (let buf of stream) {
+  dcBlocker(buf, p2)   // DC removal first
+  moogLadder(buf, p1)
+}
+```
+
+**Stereo — independent state per channel**
+```js
+let pL = { fc: 1000, fs: 44100 }
+let pR = { fc: 1000, fs: 44100 }
+for (let [L, R] of stereoStream) {
+  moogLadder(L, pL)
+  moogLadder(R, pR)
+}
+```
+
+**Frequency analysis**
+```js
+import { freqz, mag2db } from 'digital-filter'
+
+let sos = aWeighting.coefs(44100)
+let { magnitude } = freqz(sos, 4096, 44100)
+let db = mag2db(magnitude)   // dB at 4096 frequencies, 20 Hz–Nyquist
+```
+
+**Multi-band split**
+```js
+let bands = crossover([500, 5000], 4, 44100)   // lo / mid / hi
+let [lo, mid, hi] = bands.map(coefs => {
+  let buf = Float64Array.from(input)   // copy — filter is in-place
+  filter(buf, { coefs })
+  return buf
+})
+// process independently, then sum
+```
+
+**Automate cutoff without clicks**
+```js
+let p = { fc: 200, Q: 1.0, fs: 44100 }
+for (let buf of stream) {
+  p.fc = 200 + lfo() * 1800   // mutate in-place — state preserved
+  variableBandwidth(buf, p)
+}
+```
+
+
+## Pitfalls
+
+**New params object on every call — state resets each block**
+```js
+// Wrong
+for (let buf of stream) moogLadder(buf, { fc: 1000, fs: 44100 })
+
+// Right — create once, reuse
+let p = { fc: 1000, fs: 44100 }
+for (let buf of stream) moogLadder(buf, p)
+```
+
+**Shared params for stereo — channels corrupt each other's state**
+```js
+// Wrong
+let p = { fc: 1000, fs: 44100 }
+for (let [L, R] of stream) { moogLadder(L, p); moogLadder(R, p) }
+
+// Right — one object per channel
+let pL = { fc: 1000, fs: 44100 }, pR = { fc: 1000, fs: 44100 }
+for (let [L, R] of stream) { moogLadder(L, pL); moogLadder(R, pR) }
+```
+
+**Filtering the same buffer twice for multi-band — second band sees pre-filtered input**
+```js
+// Wrong
+filter(buffer, { coefs: bands[0] })
+filter(buffer, { coefs: bands[1] })   // input already filtered!
+
+// Right — copy per band
+let bufs = bands.map(b => { let c = Float64Array.from(buffer); filter(c, { coefs: b.coefs }); return c })
+```
+
+**Omitting `fs` — silently uses 44100 Hz math on 48000 Hz audio**
+```js
+// Wrong — wrong cutoffs at 48 kHz
+moogLadder(buffer, { fc: 1000 })
+
+// Right
+moogLadder(buffer, { fc: 1000, fs: 48000 })
+```
+
+
 ## See also
 
 - [digital-filter](https://github.com/audiojs/digital-filter) — general-purpose filter design: Butterworth, Chebyshev, Bessel, Elliptic, FIR, and more
@@ -773,7 +886,6 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 - [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) — browser built-in audio; basic biquad shapes only, requires `AudioContext`
 
 
-## References
 
 [^1]: IEC 61672-1:2013, *Electroacoustics — Sound level meters — Part 1: Specifications*. Supersedes IEC 651:1979.
 
