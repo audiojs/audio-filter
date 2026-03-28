@@ -15,7 +15,7 @@
   "types": "./index.d.ts",
   "scripts": {
     "test": "node test.js",
-    "plots": "node plots/generate.js"
+    "plot": "node plot/generate.js"
   },
   "repository": {
     "type": "git",

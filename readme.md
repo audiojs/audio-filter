@@ -54,7 +54,7 @@ let db   = mag2db(resp.magnitude)
 
 Standard measurement curves. Each is defined by a standards body to a specific curve shape and normalization.
 
-![Weighting filters comparison](plots/weighting.svg)
+![Weighting filters comparison](plot/weighting.svg)
 
 | filter | standard | normalized |
 |---|---|---|
@@ -69,7 +69,7 @@ Standard measurement curves. Each is defined by a standards body to a specific c
 
 *Models how the ear perceives loudness — attenuates low and very high frequencies.*
 
-![A-weighting](plots/a-weighting.svg)
+![A-weighting](plot/a-weighting.svg)
 
 | param | default | description |
 |---|---|---|
@@ -100,7 +100,7 @@ for (let buf of stream) aWeighting(buf, p)   // A-weighted stream
 
 *Like A-weighting but flatter — less rolloff at low and high frequencies.*
 
-![C-weighting](plots/c-weighting.svg)
+![C-weighting](plot/c-weighting.svg)
 
 | param | default | description |
 |---|---|---|
@@ -127,7 +127,7 @@ cWeighting(buffer, { fs: 44100 })
 
 *The loudness measurement curve — a high shelf plus a highpass. Used to compute LUFS.*
 
-![K-weighting](plots/k-weighting.svg)
+![K-weighting](plot/k-weighting.svg)
 
 | param | default | description |
 |---|---|---|
@@ -157,7 +157,7 @@ kWeighting(buffer, { fs: 44100 })   // approximated via biquad design
 
 *Peaked noise weighting — peaks at +12.2 dB near 6.3 kHz — models how humans actually perceive noise annoyance.*
 
-![ITU-R 468](plots/itu468.svg)
+![ITU-R 468](plot/itu468.svg)
 
 | param | default | description |
 |---|---|---|
@@ -184,7 +184,7 @@ itu468(buffer, { fs: 48000 })
 
 *Playback equalization for vinyl records — a shelving curve with three time constants.*
 
-![RIAA equalization](plots/riaa.svg)
+![RIAA equalization](plot/riaa.svg)
 
 | param | default | description |
 |---|---|---|
@@ -218,7 +218,7 @@ Models of the human auditory system — how the cochlea and brain decompose soun
 
 *The cochlear filter — bandpass tuned to one frequency, decaying oscillation, mimics an inner hair cell.*
 
-![Gammatone filter](plots/gammatone.svg)
+![Gammatone filter](plot/gammatone.svg)
 
 | param | default | description |
 |---|---|---|
@@ -235,7 +235,7 @@ gammatone(buffer, params)   // bandpass at 1 kHz with cochlear envelope
 
 Reuse `params` across blocks — state in `params._s`, gain cached in `params._gain`.
 
-![Gammatone bank (6 center frequencies)](plots/gammatone-bank.svg)
+![Gammatone bank (6 center frequencies)](plot/gammatone-bank.svg)
 
 <details>
 <summary>Reference</summary>
@@ -254,7 +254,7 @@ Reuse `params` across blocks — state in `params._s`, gain cached in `params._g
 
 *ISO/IEC fractional-octave filter bank — the standard for acoustic measurement and spectrum analysis.*
 
-![1/3-octave filter bank](plots/octave-bank.svg)
+![1/3-octave filter bank](plot/octave-bank.svg)
 
 | param | default | description |
 |---|---|---|
@@ -293,7 +293,7 @@ for (let band of bands) {
 
 *Equivalent Rectangular Bandwidth scale — how the auditory system actually spaces its channels.*
 
-![ERB filter bank](plots/erb-bank.svg)
+![ERB filter bank](plot/erb-bank.svg)
 
 | param | default | description |
 |---|---|---|
@@ -335,7 +335,7 @@ for (let buf of stream) {
 
 *Zwicker's 24 critical bands — the psychoacoustic foundation of perceptual audio coding.*
 
-![Bark critical band filter bank](plots/bark-bank.svg)
+![Bark critical band filter bank](plot/bark-bank.svg)
 
 | param | default | description |
 |---|---|---|
@@ -376,7 +376,7 @@ Discrete-time models of analog circuits — each named after the hardware it rep
 
 *Robert Moog's 4-pole transistor ladder, 1965 — the most imitated filter in electronic music.*
 
-![Moog ladder resonance sweep](plots/moog-ladder.svg)
+![Moog ladder resonance sweep](plot/moog-ladder.svg)
 
 | param | default | description |
 |---|---|---|
@@ -414,7 +414,7 @@ moogLadder(silent, { fc: 1000, resonance: 1, fs: 44100 })
 
 *Roland TB-303 / EMS VCS3 style — per-stage saturation gives the characteristic acid "squelch".*
 
-![Diode ladder](plots/diode-ladder.svg)
+![Diode ladder](plot/diode-ladder.svg)
 
 | param | default | description |
 |---|---|---|
@@ -445,7 +445,7 @@ diodeLadder(buffer, params)
 
 *Korg MS-10/MS-20, 1978 — 2-pole filter with lowpass and complementary highpass outputs.*
 
-![Korg35 lowpass](plots/korg35-lp.svg) ![Korg35 highpass](plots/korg35-hp.svg)
+![Korg35 LP and HP](plot/korg35.svg)
 
 | param | default | description |
 |---|---|---|
@@ -482,7 +482,7 @@ Filters that model or process the human vocal tract — from vowel synthesis to 
 
 *Parallel resonator bank — each peak models one vocal tract resonance (formant).*
 
-![Formant filter](plots/formant.svg)
+![Formant filter](plot/formant.svg)
 
 | param | default | description |
 |---|---|---|
@@ -557,7 +557,7 @@ Equalization and frequency routing — from parametric studio EQ to speaker cros
 
 *10-band ISO octave equalizer — fixed center frequencies, gain per band.*
 
-![Graphic EQ](plots/graphic-eq.svg)
+![Graphic EQ](plot/graphic-eq.svg)
 
 | param | default | description |
 |---|---|---|
@@ -580,7 +580,7 @@ graphicEq(buffer, {
 
 *N-band EQ with fully adjustable frequency, Q, and gain per band.*
 
-![Parametric EQ](plots/parametric-eq.svg)
+![Parametric EQ](plot/parametric-eq.svg)
 
 | band type | params | description |
 |---|---|---|
@@ -606,7 +606,7 @@ parametricEq(buffer, {
 
 *Linkwitz-Riley crossover network — splits audio into N frequency bands with flat magnitude sum.*
 
-![4-way crossover](plots/crossover.svg)
+![4-way crossover](plot/crossover.svg)
 
 | param | default | description |
 |---|---|---|
@@ -643,7 +643,7 @@ let hi  = Float64Array.from(buffer); filter(hi,  { coefs: bands[2] })
 
 *Headphone crossfeed — mixes a filtered copy of each channel into the other to reduce in-head localization.*
 
-![Crossfeed](plots/crossfeed.svg)
+![Crossfeed](plot/crossfeed.svg)
 
 | param | default | description |
 |---|---|---|
@@ -679,7 +679,7 @@ Signal processing utilities — conditioning, shaping, and analyzing audio signa
 
 *Removes DC offset — the simplest useful filter.*
 
-![DC blocker](plots/dc-blocker.svg)
+![DC blocker](plot/dc-blocker.svg)
 
 H(z) = (1 − z⁻¹) / (1 − R·z⁻¹)
 
@@ -699,7 +699,7 @@ dcBlocker(buffer, params)
 
 *Adds a delayed copy of the signal to itself — notches and peaks at harmonics of fs/delay.*
 
-![Comb filter](plots/comb.svg)
+![Comb filter](plot/comb.svg)
 
 | param | default | description |
 |---|---|---|
@@ -718,7 +718,7 @@ comb(buffer, { delay: 100, gain: 0.6, type: 'feedback' })
 
 *Unity magnitude at all frequencies — shifts phase only. First and second order.*
 
-![First-order allpass](plots/allpass-first.svg)
+![First-order allpass](plot/allpass-first.svg)
 
 ```js
 import { allpass } from 'audio-filter/effect'
@@ -732,7 +732,7 @@ allpass.second(buffer, { fc: 1000, Q: 1, fs: 44100 })      // center fc, quality
 
 *First-order highpass (emphasis) and its inverse (de-emphasis) — used before and after coding or transmission.*
 
-![Pre-emphasis](plots/pre-emphasis.svg)
+![Pre-emphasis](plot/pre-emphasis.svg)
 
 H(z) = 1 − α·z⁻¹ &nbsp;(emphasis) &nbsp;/&nbsp; 1/(1 − α·z⁻¹) &nbsp;(de-emphasis)
 
@@ -752,7 +752,7 @@ deemphasis(buffer, { alpha: 0.97 })  // after decoding — exact inverse
 
 *Constant peak-gain bandpass — peak amplitude stays fixed regardless of bandwidth.*
 
-![Resonator](plots/resonator.svg)
+![Resonator](plot/resonator.svg)
 
 H(z) = (1 − R²) / (1 − 2R·cos(ω₀)·z⁻¹ + R²·z⁻²)
 
@@ -775,7 +775,7 @@ Unlike a peaking EQ section, peak gain is always 0 dB regardless of Q — stable
 
 *Tracks the instantaneous amplitude of a signal with configurable attack and release.*
 
-![Envelope follower](plots/envelope.svg)
+![Envelope follower](plot/envelope.svg)
 
 | param | default | description |
 |---|---|---|
@@ -795,7 +795,7 @@ envelope(buffer, params)   // buffer replaced with envelope signal (0–1)
 
 *Limits the rate of change — asymmetric first-order lowpass with separate rise and fall rates.*
 
-![Slew limiter](plots/slew-limiter.svg)
+![Slew limiter](plot/slew-limiter.svg)
 
 | param | default | description |
 |---|---|---|
@@ -814,7 +814,7 @@ slewLimiter(buffer, { rise: 500, fall: 200, fs: 44100 })
 
 *Error-feedback dithering — quantizes to N bits while pushing quantization noise into high frequencies.*
 
-![Noise shaping](plots/noise-shaping.svg)
+![Noise shaping](plot/noise-shaping.svg)
 
 | param | default | description |
 |---|---|---|
@@ -831,7 +831,7 @@ noiseShaping(buffer, { bits: 16 })   // dither to 16-bit, noise shaped above 10 
 
 *Shapes white noise to 1/f spectrum — equal energy per octave.*
 
-![Pink noise filter](plots/pink-noise.svg)
+![Pink noise filter](plot/pink-noise.svg)
 
 ```js
 import { pinkNoise } from 'audio-filter/effect'
@@ -846,7 +846,7 @@ pinkNoise(buf, {})   // white → pink (−3 dB/oct spectral slope)
 
 *Applies a constant dB/octave slope — tilts the entire spectrum.*
 
-![Spectral tilt](plots/spectral-tilt.svg)
+![Spectral tilt](plot/spectral-tilt.svg)
 
 | param | default | description |
 |---|---|---|
@@ -865,7 +865,7 @@ spectralTilt(buffer, { slope: +3, fs: 44100 })   // +3 dB/oct: pre-emphasis for 
 
 *Lowpass with continuously variable bandwidth — smooth parameter automation without discontinuities.*
 
-![Variable bandwidth](plots/variable-bandwidth.svg)
+![Variable bandwidth](plot/variable-bandwidth.svg)
 
 | param | default | description |
 |---|---|---|
