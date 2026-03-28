@@ -83,9 +83,9 @@ for (let buf of stream) aWeighting(buf, p)   // A-weighted stream
 
 **Standard**: IEC 61672-1:2013[^1]
 
-**Transfer function**: H(s) = K·s⁴ / ((s+ω₁)²·(s+ω₂)·(s+ω₃)·(s+ω₄)²)
+**Transfer function**: $H(s) = \frac{Ks^4}{(s+\omega_1)^2(s+\omega_2)(s+\omega_3)(s+\omega_4)^2}$
 
-**Poles**: ω₁=2π·20.6 Hz, ω₂=2π·107.7 Hz, ω₃=2π·737.9 Hz, ω₄=2π·12194 Hz
+**Poles**: $\omega_1 = 2\pi \cdot 20.6\,\text{Hz}$, $\omega_2 = 2\pi \cdot 107.7\,\text{Hz}$, $\omega_3 = 2\pi \cdot 737.9\,\text{Hz}$, $\omega_4 = 2\pi \cdot 12194\,\text{Hz}$
 
 **Implementation**: bilinear transform of analog prototype, prewarped poles, 3 SOS sections
 
@@ -113,9 +113,9 @@ cWeighting(buffer, { fs: 44100 })
 
 **Standard**: IEC 61672-1:2013[^1]
 
-**Transfer function**: H(s) = K·s² / ((s+ω₁)²·(s+ω₄)²)
+**Transfer function**: $H(s) = \frac{Ks^2}{(s+\omega_1)^2(s+\omega_4)^2}$
 
-**Poles**: ω₁=2π·20.6 Hz, ω₄=2π·12194 Hz (same as A-weighting outer poles)
+**Poles**: $\omega_1 = 2\pi \cdot 20.6\,\text{Hz}$, $\omega_4 = 2\pi \cdot 12194\,\text{Hz}$ (same as A-weighting outer poles)
 
 **Implementation**: 2 SOS sections, bilinear transform
 
@@ -202,9 +202,9 @@ riaa(phonoSignal, { fs: 44100 })   // correct vinyl playback
 
 **Standard**: RIAA 1954, IEC 60098:1987[^4]
 
-**Time constants**: T₁=3180 μs (50.05 Hz pole), T₂=318 μs (500.5 Hz zero), T₃=75 μs (2122 Hz pole)
+**Time constants**: $T_1 = 3180\,\mu\text{s}$ (50.05 Hz pole), $T_2 = 318\,\mu\text{s}$ (500.5 Hz zero), $T_3 = 75\,\mu\text{s}$ (2122 Hz pole)
 
-**Transfer function**: H(s) = (1 + s·T₂) / ((1 + s·T₁)(1 + s·T₃))
+**Transfer function**: $H(s) = \frac{1 + sT_2}{(1 + sT_1)(1 + sT_3)}$
 
 **Purpose**: playback de-emphasis undoes the mastering pre-emphasis applied during vinyl cutting
 
@@ -244,9 +244,9 @@ Reuse `params` across blocks — state in `params._s`, gain cached in `params._g
 
 **Model**: cascade of complex one-pole filters; 4th-order is the standard cochlear approximation
 
-**Bandwidth**: ERB = 24.7·(4.37·fc/1000 + 1) Hz
+**Bandwidth**: $\text{ERB} = 24.7\left(\frac{4.37 f_c}{1000} + 1\right)\,\text{Hz}$
 
-**Implementation**: complex resonator with gain normalization to 0 dB at fc
+**Implementation**: complex resonator with gain normalization to 0 dB at $f_c$
 
 **Use when**: cochlear modeling, auditory scene analysis, psychoacoustic feature extraction
 
@@ -280,9 +280,9 @@ for (let band of bands) {
 
 **Standard**: IEC 61260-1:2014[^6], ANSI S1.11:2004
 
-**Center frequencies**: ISO 266 series — fc = 1000·G^(k/fraction), G = 10^(3/10)
+**Center frequencies**: ISO 266 series — $f_c = 1000 \cdot G^{k/n}$, $G = 10^{3/10}$
 
-**Bandwidth**: each band spans fc·G^(−1/2n) to fc·G^(+1/2n)
+**Bandwidth**: each band spans $f_c \cdot G^{-1/(2n)}$ to $f_c \cdot G^{+1/(2n)}$
 
 **1/1 octave**: 10 bands (31.5–16 kHz) — coarse; **1/3 octave**: 30 bands — standard; **1/6+**: psychoacoustics
 
@@ -319,7 +319,7 @@ for (let buf of stream) {
 
 **Origin**: Moore & Glasberg (1983, 1990)[^7]
 
-**ERB formula**: ERB(fc) = 24.7·(4.37·fc/1000 + 1)
+**ERB formula**: $\text{ERB}(f_c) = 24.7\left(\frac{4.37 f_c}{1000} + 1\right)$
 
 **Spacing**: ~1 ERB between adjacent channels — logarithmic above 1 kHz, more linear below
 
@@ -397,9 +397,9 @@ moogLadder(silent, { fc: 1000, resonance: 1, fs: 44100 })
 
 **Implementation**: Zero-delay feedback (ZDF) via trapezoidal integration — Zavalishin (2012)[^9], Ch. 6
 
-**Response**: −24 dB/octave lowpass; resonance peak at fc; self-oscillation (sine wave) at resonance=1
+**Response**: $-24\,\text{dB/oct}$ lowpass; resonance peak at $f_c$; self-oscillation (sine wave) at resonance=1
 
-**Nonlinearity**: tanh saturation at input (transistor ladder characteristic)
+**Nonlinearity**: $\tanh$ saturation at input (transistor ladder characteristic)
 
 **vs Diode ladder**: Moog saturates only at input; diode saturates at each stage — different character at high resonance
 
@@ -424,7 +424,7 @@ diodeLadder(buffer, params)
 
 **Circuit**: Roland TB-303, EMS VCS3, EDP Wasp
 
-**Key difference from Moog**: tanh nonlinearity at each of 4 stages, not just input; feedback is a weighted sum of all stage outputs
+**Key difference from Moog**: $\tanh$ nonlinearity at each of 4 stages, not just input; feedback is a weighted sum of all stage outputs
 
 **Character**: preserves bass at high resonance; more "squelchy" and aggressive than Moog
 
@@ -457,9 +457,9 @@ korg35(buffer, { fc: 1000, resonance: 0.5, type: 'highpass', fs: 44100 })
 
 **Analysis**: Stilson & Smith (1996)[^12]; Zavalishin (2012)[^9], Ch. 5
 
-**Character**: −12 dB/octave; aggressive resonance due to nonlinear feedback; both LP and HP from one circuit
+**Response**: $-12\,\text{dB/oct}$; aggressive resonance due to nonlinear feedback; both LP and HP from one circuit
 
-**vs Moog ladder**: 2-pole (−12 dB/oct) vs 4-pole (−24 dB/oct); Korg35 has complementary HP mode
+**vs Moog ladder**: 2-pole ($-12\,\text{dB/oct}$) vs 4-pole ($-24\,\text{dB/oct}$); Korg35 has complementary HP mode
 
 </details>
 
@@ -558,6 +558,21 @@ graphicEq(buffer, {
 })
 ```
 
+<details>
+<summary>Reference</summary>
+
+**Standard**: ISO 266:1997 center frequencies
+
+**Implementation**: parallel biquad peaking filters, one per band; gains combined additively
+
+**Band spacing**: 1-octave intervals — $f_k = 1000 \cdot 2^k\,\text{Hz}$
+
+**Use when**: quick tonal shaping, DJ mixers, consumer audio, live sound
+
+**vs Parametric EQ**: fixed centers but simpler — no per-band frequency or Q control
+
+</details>
+
 
 ### Parametric EQ
 
@@ -577,6 +592,19 @@ parametricEq(buffer, {
   fs: 44100
 })
 ```
+
+<details>
+<summary>Reference</summary>
+
+**Implementation**: cascaded biquad sections — one per band; `peak` uses peaking EQ biquad, shelves use Zölzer shelf design[^16]
+
+**Band types**: `peak` (bell curve at $f_c$), `lowshelf` (boost/cut below $f_c$), `highshelf` (boost/cut above $f_c$)
+
+**Use when**: studio mixing, mastering, precise tonal correction
+
+**vs Graphic EQ**: fully adjustable $f_c$, Q, and gain per band; no fixed centers
+
+</details>
 
 
 ### Crossover
@@ -607,7 +635,7 @@ let hi  = Float64Array.from(buffer); filter(hi,  { coefs: bands[2] })
 
 **Property**: LR4 (order=4) bands sum to flat magnitude response with correct phase alignment
 
-**Orders**: LR2 (−12 dB/oct), LR4 (−24 dB/oct, most common), LR8 (−48 dB/oct)
+**Orders**: LR2 ($-12\,\text{dB/oct}$), LR4 ($-24\,\text{dB/oct}$, most common), LR8 ($-48\,\text{dB/oct}$)
 
 **Use when**: speaker system design, multi-band dynamics, band splitting for separate processing
 
@@ -653,7 +681,7 @@ Removes DC offset — the simplest useful filter.
 
 ![DC blocker](plot/dc-blocker.svg)
 
-H(z) = (1 − z⁻¹) / (1 − R·z⁻¹)
+$H(z) = \dfrac{1 - z^{-1}}{1 - Rz^{-1}}$
 
 ```js
 import { dcBlocker } from 'audio-filter/effect'
@@ -662,10 +690,21 @@ let params = { R: 0.995 }
 dcBlocker(buffer, params)
 ```
 
+<details>
+<summary>Reference</summary>
+
+**Topology**: zero at $z = 1$ (DC), pole at $z = R$
+
+**Cutoff**: $f_c \approx \frac{(1-R) f_s}{2\pi}$ — $R = 0.995$ gives ~22 Hz at 44.1 kHz
+
+**Use when**: removing DC bias before processing, preventing lowpass filter saturation
+
+</details>
+
 
 ### Comb filter
 
-Adds a delayed copy of the signal to itself — notches and peaks at harmonics of fs/delay.
+Adds a delayed copy of the signal to itself — notches and peaks at harmonics of $f_s / D$.
 
 ![Comb filter](plot/comb.svg)
 
@@ -674,6 +713,17 @@ import { comb } from 'audio-filter/effect'
 
 comb(buffer, { delay: 100, gain: 0.6, type: 'feedback' })
 ```
+
+<details>
+<summary>Reference</summary>
+
+**Feedforward**: $H(z) = 1 + g \cdot z^{-D}$ — notches at $f = \frac{(2k+1) f_s}{2D}$
+
+**Feedback**: $H(z) = \dfrac{1}{1 - g \cdot z^{-D}}$ — peaks at $f = \frac{k \cdot f_s}{D}$
+
+**Use when**: flanging, chorus (with modulated delay), Karplus-Strong string synthesis, room mode modeling
+
+</details>
 
 
 ### Allpass
@@ -689,6 +739,17 @@ allpass.first(buffer, { a: 0.5 })                          // coefficient a
 allpass.second(buffer, { fc: 1000, Q: 1, fs: 44100 })      // center fc, quality Q
 ```
 
+<details>
+<summary>Reference</summary>
+
+**First order**: $H(z) = \dfrac{a + z^{-1}}{1 + a z^{-1}}$ — pole at $z = -a$, 180° phase shift at Nyquist
+
+**Second order**: $H(z) = \dfrac{d - 2R\cos(\omega_0)z^{-1} + R^2 z^{-2}}{1 - 2R\cos(\omega_0)z^{-1} + R^2 z^{-2}}$ — 360° phase shift around $\omega_0$
+
+**Use when**: phase equalization, reverb building blocks (Schroeder reverb), stereo widening
+
+</details>
+
 
 ### Pre-emphasis / de-emphasis
 
@@ -696,7 +757,7 @@ First-order highpass (emphasis) and its inverse (de-emphasis) — used before an
 
 ![Pre-emphasis](plot/emphasis.svg)
 
-H(z) = 1 − α·z⁻¹ &nbsp;(emphasis) &nbsp;/&nbsp; 1/(1 − α·z⁻¹) &nbsp;(de-emphasis)
+$H(z) = 1 - \alpha z^{-1}$ (emphasis) &nbsp;/&nbsp; $H(z) = \dfrac{1}{1 - \alpha z^{-1}}$ (de-emphasis)
 
 ```js
 import { emphasis, deemphasis } from 'audio-filter/effect'
@@ -705,6 +766,17 @@ emphasis(buffer, { alpha: 0.97 })    // before encoding
 deemphasis(buffer, { alpha: 0.97 })  // after decoding — exact inverse
 ```
 
+<details>
+<summary>Reference</summary>
+
+**Rolloff**: emphasis boosts above $f_c = \frac{(1-\alpha) f_s}{2\pi}$ — $\alpha = 0.97$ gives ~420 Hz at 44.1 kHz
+
+**Use when**: speech coding (GSM, AMR uses $\alpha = 0.97$), tape recording, FM broadcasting
+
+**Inverse pair**: `deemphasis` exactly cancels `emphasis` — $H_e(z) \cdot H_d(z) = 1$
+
+</details>
+
 
 ### Resonator
 
@@ -712,7 +784,7 @@ Constant peak-gain bandpass — peak amplitude stays fixed regardless of bandwid
 
 ![Resonator](plot/resonator.svg)
 
-H(z) = (1 − R²) / (1 − 2R·cos(ω₀)·z⁻¹ + R²·z⁻²)
+$H(z) = \dfrac{1 - R^2}{1 - 2R\cos(\omega_0)z^{-1} + R^2 z^{-2}}$
 
 ```js
 import { resonator } from 'audio-filter/effect'
@@ -721,6 +793,19 @@ resonator(buffer, { fc: 440, bw: 20, fs: 44100 })
 ```
 
 Unlike a peaking EQ section, peak gain is always 0 dB regardless of Q — stable for synthesis use.
+
+<details>
+<summary>Reference</summary>
+
+**Pole radius**: $R = e^{-\pi \cdot bw / f_s}$ — controls bandwidth; $bw \to 0$ gives infinite Q
+
+**Peak gain**: always 0 dB by construction — $(1 - R^2)$ normalizes the peak
+
+**Use when**: additive synthesis (bells, gongs), modal synthesis, formant bank building
+
+**vs Peaking EQ**: resonator has fixed 0 dB peak; peaking EQ has variable gain — use resonator for synthesis, EQ for mixing
+
+</details>
 
 
 ### Envelope follower
@@ -736,6 +821,19 @@ let params = { attack: 0.001, release: 0.05, fs: 44100 }
 envelope(buffer, params)   // buffer replaced with envelope signal (0–1)
 ```
 
+<details>
+<summary>Reference</summary>
+
+**Attack**: $y[n] = \alpha_A \cdot y[n{-}1] + (1-\alpha_A)|x[n]|$ when $|x[n]| > y[n{-}1]$
+
+**Release**: $y[n] = \alpha_R \cdot y[n{-}1]$ when $|x[n]| \leq y[n{-}1]$
+
+**Time constants**: $\alpha = e^{-1/(\tau f_s)}$ — converts seconds to pole radius
+
+**Use when**: compressor/limiter sidechain, auto-wah, ducking, VCA control, gain riding
+
+</details>
+
 
 ### Slew limiter
 
@@ -748,6 +846,17 @@ import { slewLimiter } from 'audio-filter/effect'
 
 slewLimiter(buffer, { rise: 500, fall: 200, fs: 44100 })
 ```
+
+<details>
+<summary>Reference</summary>
+
+**Operation**: clips the per-sample derivative — $\Delta y \leq \text{rise}/f_s$ and $\Delta y \geq -\text{fall}/f_s$
+
+**Nonlinear**: not a linear filter — frequency response depends on signal amplitude
+
+**Use when**: smoothing control signals and automation, click prevention, portamento/glide, analog CV emulation
+
+</details>
 
 
 ### Noise shaping
@@ -762,10 +871,25 @@ import { noiseShaping } from 'audio-filter/effect'
 noiseShaping(buffer, { bits: 16 })   // dither to 16-bit, noise shaped above 10 kHz
 ```
 
+<details>
+<summary>Reference</summary>
+
+**Principle**: $y[n] = Q(x[n] + e_\text{shaped}[n])$ — quantization error fed back through shaping filter
+
+**Default filter**: first-order highpass $H(z) = 1 - z^{-1}$ — pushes noise toward Nyquist
+
+**Gain**: noise shaping trades total noise power for spectral placement; audible band gets quieter
+
+**Use when**: dithering before bit-depth reduction, CD mastering, 16-bit export from 32-bit float
+
+**Reference**: Lipshitz, Wannamaker & Vanderkooy (1992)[^17]
+
+</details>
+
 
 ### Pink noise
 
-Shapes white noise to 1/f spectrum — equal energy per octave.
+Shapes white noise to $1/f$ spectrum — equal energy per octave.
 
 ![Pink noise filter](plot/pink-noise.svg)
 
@@ -776,6 +900,19 @@ let buf = new Float64Array(1024)
 for (let i = 0; i < buf.length; i++) buf[i] = Math.random() * 2 - 1
 pinkNoise(buf, {})   // white → pink (−3 dB/oct spectral slope)
 ```
+
+<details>
+<summary>Reference</summary>
+
+**Spectrum**: power spectral density $S(f) \propto 1/f$ — $-3\,\text{dB/oct}$ slope, equal energy per octave
+
+**Implementation**: Voss-McCartney algorithm — sum of white noise sources at octave-spaced update rates; approximated by cascaded first-order IIR filters
+
+**Use when**: noise testing, psychoacoustic masking reference, procedural audio, natural-sounding noise
+
+**vs White noise**: white noise has equal energy per Hz ($-0\,\text{dB/oct}$); pink is perceptually flat
+
+</details>
 
 
 ### Spectral tilt
@@ -791,6 +928,17 @@ spectralTilt(buffer, { slope: -3, fs: 44100 })   // −3 dB/oct: brownian noise 
 spectralTilt(buffer, { slope: +3, fs: 44100 })   // +3 dB/oct: pre-emphasis for coding
 ```
 
+<details>
+<summary>Reference</summary>
+
+**Model**: first-order IIR approximation of fractional power-law spectrum $S(f) \propto f^\alpha$
+
+**slope**: $\alpha = -3\,\text{dB/oct}$ gives pink noise character; $-6\,\text{dB/oct}$ gives brownian/red noise
+
+**Use when**: matching microphone/speaker frequency responses, spectral coloring, noise synthesis
+
+</details>
+
 
 ### Variable bandwidth
 
@@ -803,6 +951,19 @@ import { variableBandwidth } from 'audio-filter/effect'
 
 variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 ```
+
+<details>
+<summary>Reference</summary>
+
+**Implementation**: biquad lowpass with per-sample coefficient update using smooth interpolation
+
+**Property**: no discontinuity when $f_c$ or $Q$ change — avoids clicks from abrupt coefficient jumps
+
+**Use when**: LFO-modulated filter cutoff, automated EQ sweeps, smooth filter animation
+
+**vs Direct biquad**: recalculating biquad coefficients per sample causes zipper noise; variable bandwidth avoids this
+
+</details>
 
 
 ## Filter selection guide
@@ -858,9 +1019,9 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 
 [^6]: IEC 61260-1:2014, *Electroacoustics — Octave-band and fractional-octave-band filters — Part 1: Specifications*. ANSI S1.11:2004.
 
-[^7]: Moore, B.C.J. & Glasberg, B.R. (1983). "Suggested formulae for calculating auditory-filter bandwidths and excitation patterns." *Journal of the Acoustical Society of America* 74(3), pp. 750–753. Updated 1990.
+[^7]: Moore, B.C.J. & Glasberg, B.R. (1983). "Suggested formulae for calculating auditory-filter bandwidths and excitation patterns." *JASA* 74(3), pp. 750–753. Updated 1990.
 
-[^8]: Zwicker, E. (1961). "Subdivision of the audible frequency range into critical bands." *Journal of the Acoustical Society of America* 33(2), p. 248.
+[^8]: Zwicker, E. (1961). "Subdivision of the audible frequency range into critical bands." *JASA* 33(2), p. 248.
 
 [^9]: Zavalishin, V. (2012). *The Art of VA Filter Design*. Native Instruments.
 
@@ -868,10 +1029,14 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 
 [^11]: Pirkle, W.C. (2019). *Designing Audio Effect Plugins in C++*, 2nd ed. Routledge.
 
-[^12]: Stilson, T. & Smith, J.O. (1996). "Analyzing the Moog VCF with considerations for digital implementation." *Proc. International Computer Music Conference (ICMC)*.
+[^12]: Stilson, T. & Smith, J.O. (1996). "Analyzing the Moog VCF with considerations for digital implementation." *Proc. ICMC*.
 
 [^13]: Dudley, H. (1939). "The vocoder." *Bell Laboratories Record* 17, pp. 122–126. Patent US2151091.
 
-[^14]: Linkwitz, S. & Riley, R. (1976). "Active Crossover Networks for Non-Coincident Drivers." *Journal of the Audio Engineering Society* 24(1), pp. 2–8.
+[^14]: Linkwitz, S. & Riley, R. (1976). "Active Crossover Networks for Non-Coincident Drivers." *JAES* 24(1), pp. 2–8.
 
-[^15]: Bauer, B.B. (1961). "Stereophonic Earphones and Binaural Loudspeakers." *Journal of the Audio Engineering Society* 9(2), pp. 148–151.
+[^15]: Bauer, B.B. (1961). "Stereophonic Earphones and Binaural Loudspeakers." *JAES* 9(2), pp. 148–151.
+
+[^16]: Zölzer, U. (2011). *DAFX: Digital Audio Effects*, 2nd ed. Wiley.
+
+[^17]: Lipshitz, S.P., Wannamaker, R.A. & Vanderkooy, J. (1992). "Quantization and Dither: A Theoretical Survey." *JAES* 40(5), pp. 355–375.
