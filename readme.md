@@ -727,6 +727,8 @@ Unlike a peaking EQ section, peak gain is always 0 dB regardless of Q — stable
 
 Tracks the instantaneous amplitude of a signal with configurable attack and release.
 
+![Envelope follower](plot/envelope.svg)
+
 ```js
 import { envelope } from 'audio-filter/effect'
 
@@ -737,7 +739,7 @@ envelope(buffer, params)   // buffer replaced with envelope signal (0–1)
 
 ### Slew limiter
 
-Limits the rate of change — asymmetric first-order lowpass with separate rise and fall rates.
+Limits the rate of change — limits rise and fall rates separately.
 
 ![Slew limiter](plot/slew-limiter.svg)
 
@@ -750,7 +752,7 @@ slewLimiter(buffer, { rise: 500, fall: 200, fs: 44100 })
 
 ### Noise shaping
 
-Error-feedback dithering — quantizes to N bits while pushing quantization noise into high frequencies.
+Error-feedback dithering — quantizes to N bits while shaping quantization noise into high frequencies.
 
 ![Noise shaping](plot/noise-shaping.svg)
 

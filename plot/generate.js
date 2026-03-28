@@ -136,6 +136,9 @@ write('deemphasis',        plotFir(impulse(af.deemphasis,       {alpha: 0.97}), 
 write('resonator',         plotFir(impulse(af.resonator,        {fc: 1000, bw: 50, fs: FS}),              'Resonator fc=1kHz, bw=50Hz'))
 write('spectral-tilt',     plotFir(impulse(af.spectralTilt,     {slope: -3, fs: FS}),                     'Spectral tilt −3 dB/oct'))
 write('variable-bandwidth',plotFir(impulse(af.variableBandwidth,{fc: 1000, Q: 1, fs: FS}),                'Variable bandwidth lowpass fc=1kHz'))
+write('envelope',          plotFir(impulse(af.envelope,         {attack: 0.001, release: 0.05, fs: FS}, 4096, 2048), 'Envelope follower attack=1ms, release=50ms'))
+write('slew-limiter',      plotFir(impulse(af.slewLimiter,      {rise: 500, fall: 200, fs: FS}),          'Slew limiter rise=500, fall=200'))
+write('noise-shaping',     plotFir(impulse(af.noiseShaping,     {bits: 16}),                              'Noise shaping 16-bit'))
 
 {
 	let data = new Float64Array(2048)
