@@ -4,15 +4,15 @@ let {PI, tan, cos, sin, sqrt} = Math
 
 export default function cWeighting(data, params = {}) {
 	let fs = params.fs || 44100
-	if (params._fs !== fs) {
+	if (!params._sos || params._fs !== fs) {
 		params._fs = fs
-		params._sos = coefs(fs)
-		params._state = params._sos.map(() => [0, 0])
+		params._sos = cWeighting.coefs(fs)
 	}
-	return dfFilter(data, { coefs: params._sos, state: params._state })
+	if (!params.state) params.state = params._sos.map(() => [0, 0])
+	return dfFilter(data, { coefs: params._sos, state: params.state })
 }
 
-export function coefs(fs = 44100) {
+cWeighting.coefs = function coefs(fs = 44100) {
 	// IEC 61672 C-weighting: H(s) = K * s^2 / ((s+w1)^2 * (s+w4)^2)
 	// 2 zeros at DC, double poles at 20.6 Hz and 12194 Hz
 	let f1 = 20.598997, f4 = 12194.217

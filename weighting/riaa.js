@@ -4,15 +4,15 @@ let {PI, tan, cos, sin, sqrt} = Math
 
 export default function riaa(data, params = {}) {
 	let fs = params.fs || 44100
-	if (params._fs !== fs) {
+	if (!params._sos || params._fs !== fs) {
 		params._fs = fs
-		params._sos = coefs(fs)
-		params._state = params._sos.map(() => [0, 0])
+		params._sos = riaa.coefs(fs)
 	}
-	return dfFilter(data, { coefs: params._sos, state: params._state })
+	if (!params.state) params.state = params._sos.map(() => [0, 0])
+	return dfFilter(data, { coefs: params._sos, state: params.state })
 }
 
-export function coefs(fs = 44100) {
+riaa.coefs = function coefs(fs = 44100) {
 	// RIAA playback (de-emphasis): H(s) = (1 + s*T2) / ((1 + s*T1) * (1 + s*T3))
 	let T1 = 3180e-6, T2 = 318e-6, T3 = 75e-6
 	let fp1 = 1 / (2 * PI * T1)   // 50.05 Hz  (pole)

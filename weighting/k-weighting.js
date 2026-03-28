@@ -3,15 +3,15 @@ import { highshelf, highpass } from 'digital-filter/iir/biquad.js'
 
 export default function kWeighting(data, params = {}) {
 	let fs = params.fs || 48000
-	if (params._fs !== fs) {
+	if (!params._sos || params._fs !== fs) {
 		params._fs = fs
-		params._sos = coefs(fs)
-		params._state = params._sos.map(() => [0, 0])
+		params._sos = kWeighting.coefs(fs)
 	}
-	return dfFilter(data, { coefs: params._sos, state: params._state })
+	if (!params.state) params.state = params._sos.map(() => [0, 0])
+	return dfFilter(data, { coefs: params._sos, state: params.state })
 }
 
-export function coefs(fs = 48000) {
+kWeighting.coefs = function coefs(fs = 48000) {
 	// ITU-R BS.1770 K-weighting: high-shelf + RLB highpass
 
 	// Exact coefficients from ITU-R BS.1770-4 for 48kHz

@@ -1,6 +1,6 @@
 // audio-filter — TypeScript declarations
 
-type Buf = Float32Array | Float64Array
+type Buf = Float32Array | Float64Array | number[]
 
 /** One biquad section: H(z) = (b0 + b1*z⁻¹ + b2*z⁻²) / (1 + a1*z⁻¹ + a2*z⁻²) */
 export interface BiquadCoef { b0: number; b1: number; b2: number; a1: number; a2: number }
@@ -12,28 +12,20 @@ export type SOS = BiquadCoef[]
 // Weighting — in-place processors (state in params)
 // ---------------------------------------------------------------------------
 
-export interface WeightingParams { fs?: number; [key: string]: unknown }
+export interface WeightingParams { fs?: number; state?: [number, number][] | null; [key: string]: unknown }
 
-/** IEC 61672 A-weighting, in-place */
-export function aWeighting(data: Buf, params?: WeightingParams): Buf
-/** IEC 61672 A-weighting SOS coefficients (for analysis with digital-filter) */
-export function aWeightingCoefs(fs?: number): SOS
+type WeightingFilter = { (data: Buf, params?: WeightingParams): Buf; coefs(fs?: number): SOS }
 
-/** IEC 61672 C-weighting, in-place */
-export function cWeighting(data: Buf, params?: WeightingParams): Buf
-export function cWeightingCoefs(fs?: number): SOS
-
-/** ITU-R BS.1770 K-weighting, in-place */
-export function kWeighting(data: Buf, params?: WeightingParams): Buf
-export function kWeightingCoefs(fs?: number): SOS
-
-/** ITU-R 468 noise-weighting, in-place */
-export function itu468(data: Buf, params?: WeightingParams): Buf
-export function itu468Coefs(fs?: number): SOS
-
-/** RIAA playback equalization, in-place */
-export function riaa(data: Buf, params?: WeightingParams): Buf
-export function riaaCoefs(fs?: number): SOS
+/** IEC 61672 A-weighting, in-place. `.coefs(fs)` returns SOS for analysis. */
+export const aWeighting: WeightingFilter
+/** IEC 61672 C-weighting, in-place. `.coefs(fs)` returns SOS for analysis. */
+export const cWeighting: WeightingFilter
+/** ITU-R BS.1770 K-weighting, in-place. `.coefs(fs)` returns SOS for analysis. */
+export const kWeighting: WeightingFilter
+/** ITU-R 468 noise-weighting, in-place. `.coefs(fs)` returns SOS for analysis. */
+export const itu468: WeightingFilter
+/** RIAA playback equalization, in-place. `.coefs(fs)` returns SOS for analysis. */
+export const riaa: WeightingFilter
 
 // ---------------------------------------------------------------------------
 // Auditory — cochlear / perceptual models

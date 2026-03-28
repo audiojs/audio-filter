@@ -3,15 +3,15 @@ import { highpass, peaking, highshelf, lowpass } from 'digital-filter/iir/biquad
 
 export default function itu468(data, params = {}) {
 	let fs = params.fs || 48000
-	if (params._fs !== fs) {
+	if (!params._sos || params._fs !== fs) {
 		params._fs = fs
-		params._sos = coefs(fs)
-		params._state = params._sos.map(() => [0, 0])
+		params._sos = itu468.coefs(fs)
 	}
-	return dfFilter(data, { coefs: params._sos, state: params._state })
+	if (!params.state) params.state = params._sos.map(() => [0, 0])
+	return dfFilter(data, { coefs: params._sos, state: params.state })
 }
 
-export function coefs(fs = 48000) {
+itu468.coefs = function coefs(fs = 48000) {
 	// ITU-R 468 noise weighting: peaked at +12.2 dB near 6.3 kHz
 	// IIR approximation within ~1 dB across 31.5 Hz–20 kHz
 	return [

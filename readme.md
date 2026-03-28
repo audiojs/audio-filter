@@ -1,6 +1,6 @@
 # audio-filter
 
-Canonical audio filters implementations known to audio engineers by name.
+Canonical audio filters implementations known by name.<br>
 Covering 6 domains:
 [weighting](#weighting), [auditory](#auditory), [analog](#analog), [speech](#speech), [eq](#eq), [effect](#effect).
 
@@ -32,20 +32,19 @@ All filters share one shape:
 filter(buffer, params)   // → buffer (modified in-place)
 ```
 
-Takes a `Float32Array` or `Float64Array`, modifies it in-place, returns it. State is stored in the params object under `_`-prefixed keys — pass the same object on every call and state persists across blocks automatically:
+Takes an `Array`/`Float32Array`/`Float64Array`, modifies it in-place, returns it. State is stored in the params object under `_`-prefixed keys — pass the same object on every call to persist across blocks automatically:
 
 ```js
 let params = { fc: 1000, resonance: 0.5, fs: 44100 }
 for (let buf of stream) moogLadder(buf, params)
 ```
 
-For frequency analysis, weighting filters expose a `*Coefs(fs)` companion that returns the raw SOS array for use with `digital-filter`:
+For frequency analysis, weighting filters expose a `.coefs(fs)` method returning a second-order sections (SOS) array — `[{b0, b1, b2, a1, a2}, ...]`, one biquad per section — for use with `digital-filter`:
 
 ```js
-import { aWeightingCoefs } from 'audio-filter/weighting'
 import { freqz, mag2db } from 'digital-filter'
 
-let sos  = aWeightingCoefs(44100)
+let sos  = aWeighting.coefs(44100)
 let resp = freqz(sos, 2048, 44100)
 let db   = mag2db(resp.magnitude)
 ```

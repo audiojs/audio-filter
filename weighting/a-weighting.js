@@ -4,15 +4,15 @@ let {PI, tan, cos, sin, sqrt} = Math
 
 export default function aWeighting(data, params = {}) {
 	let fs = params.fs || 44100
-	if (params._fs !== fs) {
+	if (!params._sos || params._fs !== fs) {
 		params._fs = fs
-		params._sos = coefs(fs)
-		params._state = params._sos.map(() => [0, 0])
+		params._sos = aWeighting.coefs(fs)
 	}
-	return dfFilter(data, { coefs: params._sos, state: params._state })
+	if (!params.state) params.state = params._sos.map(() => [0, 0])
+	return dfFilter(data, { coefs: params._sos, state: params.state })
 }
 
-export function coefs(fs = 44100) {
+aWeighting.coefs = function coefs(fs = 44100) {
 	// IEC 61672 analog prototype frequencies (Hz)
 	let f1 = 20.598997, f2 = 107.65265, f3 = 737.86223, f4 = 12194.217
 	let C = 2 * fs

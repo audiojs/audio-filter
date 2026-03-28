@@ -1,6 +1,5 @@
 import test, { almost, ok, is } from 'tst'
 import * as audio from './index.js'
-import { aWeightingCoefs, cWeightingCoefs, kWeightingCoefs, itu468Coefs, riaaCoefs } from './weighting/index.js'
 import { biquad, filter, freqz, mag2db } from 'digital-filter'
 
 let EPSILON = 1e-10
@@ -49,13 +48,13 @@ test('allpass.first — unity magnitude', () => {
 })
 
 test('aWeighting — 3 SOS sections via coefs', () => {
-	let sos = aWeightingCoefs(44100)
+	let sos = audio.aWeighting.coefs(44100)
 	is(sos.length, 3, '3 sections')
 	ok(sos[0].b0 !== undefined, 'has coefficients')
 })
 
 test('aWeighting — 0dB at 1kHz', () => {
-	let sos = aWeightingCoefs(44100)
+	let sos = audio.aWeighting.coefs(44100)
 	let resp = freqz(sos, 2048, 44100)
 	let idx = Math.round(1000 / (44100 / 2) * 2048)
 	let db = mag2db(resp.magnitude[idx])
@@ -72,12 +71,12 @@ test('aWeighting — in-place processing', () => {
 })
 
 test('cWeighting — 2 SOS sections via coefs', () => {
-	let sos = cWeightingCoefs(44100)
+	let sos = audio.cWeighting.coefs(44100)
 	is(sos.length, 2, '2 sections')
 })
 
 test('cWeighting — 0dB at 1kHz', () => {
-	let sos = cWeightingCoefs(44100)
+	let sos = audio.cWeighting.coefs(44100)
 	let resp = freqz(sos, 2048, 44100)
 	let idx = Math.round(1000 / (44100 / 2) * 2048)
 	let db = mag2db(resp.magnitude[idx])
@@ -85,29 +84,29 @@ test('cWeighting — 0dB at 1kHz', () => {
 })
 
 test('kWeighting 48kHz — exact spec coefficients', () => {
-	let sos = kWeightingCoefs(48000)
+	let sos = audio.kWeighting.coefs(48000)
 	is(sos.length, 2, '2 stages')
 	almost(sos[0].b0, 1.53512485958697, EPSILON)
 	almost(sos[1].b0, 1.0, EPSILON)
 })
 
 test('kWeighting other rate — still returns 2 sections', () => {
-	let sos = kWeightingCoefs(44100)
+	let sos = audio.kWeighting.coefs(44100)
 	is(sos.length, 2, '2 stages at 44100')
 })
 
 test('itu468 — returns sections', () => {
-	let sos = itu468Coefs(48000)
+	let sos = audio.itu468.coefs(48000)
 	ok(sos.length >= 3, 'at least 3 sections')
 })
 
 test('riaa — returns 1 section', () => {
-	let sos = riaaCoefs(44100)
+	let sos = audio.riaa.coefs(44100)
 	is(sos.length, 1, '1 section')
 })
 
 test('riaa — bass boost at 20Hz', () => {
-	let sos = riaaCoefs(44100)
+	let sos = audio.riaa.coefs(44100)
 	let resp = freqz(sos, 4096, 44100)
 	let idx20 = Math.round(20 / (44100 / 2) * 4096)
 	let idx1k = Math.round(1000 / (44100 / 2) * 4096)
@@ -367,7 +366,7 @@ test('noiseShaping — quantizes to target bit depth', () => {
 })
 
 test('itu468 — peaked response near 6.3kHz', () => {
-	let sos = itu468Coefs(48000)
+	let sos = audio.itu468.coefs(48000)
 	ok(sos.length >= 3, 'at least 3 sections')
 	let resp = freqz(sos, 4096, 48000)
 	let db = mag2db(resp.magnitude)
