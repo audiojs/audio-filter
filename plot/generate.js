@@ -7,7 +7,7 @@ import { plotFilter, plotFir, plotCompare, theme } from 'digital-filter/plot'
 import * as af from '../index.js'
 import { writeFileSync } from 'node:fs'
 
-let FS = theme.sampleRate
+let FS = theme.fs
 
 function write (name, svg) { writeFileSync(`plot/${name}.svg`, svg) }
 
