@@ -17,22 +17,51 @@
     "test": "node test.js",
     "plot": "node plot/generate.js"
   },
+  "files": [
+    "weighting",
+    "auditory",
+    "analog",
+    "speech",
+    "eq",
+    "effect",
+    "index.js",
+    "index.d.ts"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/audiojs/audio-filter.git"
   },
+  "bugs": {
+    "url": "https://github.com/audiojs/audio-filter/issues"
+  },
+  "homepage": "https://github.com/audiojs/audio-filter#readme",
   "keywords": [
     "audio",
     "dsp",
     "filter",
     "a-weighting",
+    "c-weighting",
+    "k-weighting",
+    "itu-468",
+    "riaa",
     "equalizer",
+    "parametric-eq",
+    "graphic-eq",
+    "crossover",
+    "crossfeed",
     "moog",
+    "korg",
+    "diode-ladder",
     "vocoder",
+    "formant",
     "gammatone",
-    "psychoacoustics"
+    "bark",
+    "erb",
+    "octave-band",
+    "psychoacoustics",
+    "signal-processing"
   ],
-  "author": "Dima Iv <dfcreative@gmail.com>",
+  "author": "Dmitry Iv <dfcreative@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "digital-filter": "^2.0.0"

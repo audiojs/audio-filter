@@ -1,4 +1,4 @@
-# audio-filter
+# audio-filter [![ci](https://github.com/audiojs/audio-filter/actions/workflows/ci.yml/badge.svg)](https://github.com/audiojs/audio-filter/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/audio-filter)](https://npmjs.org/package/audio-filter)
 
 Canonical audio filters implementations.<br>
 Covering
