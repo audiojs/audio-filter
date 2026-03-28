@@ -32,7 +32,7 @@
     "gammatone",
     "psychoacoustics"
   ],
-  "author": "Dima Yv <dfcreative@gmail.com>",
+  "author": "Dima Iv <dfcreative@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "digital-filter": "^2.0.0"

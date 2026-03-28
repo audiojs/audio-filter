@@ -78,8 +78,6 @@ let p = { fs: 44100 }
 for (let buf of stream) aWeighting(buf, p)   // A-weighted stream
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Standard**: IEC 61672-1:2013[^1]
 
@@ -87,7 +85,7 @@ for (let buf of stream) aWeighting(buf, p)   // A-weighted stream
 
 **Poles**: $\omega_1 = 2\pi \cdot 20.6\,\text{Hz}$, $\omega_2 = 2\pi \cdot 107.7\,\text{Hz}$, $\omega_3 = 2\pi \cdot 737.9\,\text{Hz}$, $\omega_4 = 2\pi \cdot 12194\,\text{Hz}$
 
-**Implementation**: bilinear transform of analog prototype, prewarped poles, 3 SOS sections
+**Implementation**: matched z-transform ($z_k = e^{s_k/f_s}$), 3 SOS sections — no frequency warping near Nyquist
 
 **Normalization**: 0 dB at 1 kHz (IEC requirement)
 
@@ -95,7 +93,6 @@ for (let buf of stream) aWeighting(buf, p)   // A-weighted stream
 
 **Not for**: loudness in broadcast (use K-weighting), noise annoyance (use ITU-468)
 
-</details>
 
 
 ### C-weighting
@@ -108,8 +105,6 @@ Like A-weighting but flatter — less rolloff at low and high frequencies.
 cWeighting(buffer, { fs: 44100 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Standard**: IEC 61672-1:2013[^1]
 
@@ -117,13 +112,12 @@ cWeighting(buffer, { fs: 44100 })
 
 **Poles**: $\omega_1 = 2\pi \cdot 20.6\,\text{Hz}$, $\omega_4 = 2\pi \cdot 12194\,\text{Hz}$ (same as A-weighting outer poles)
 
-**Implementation**: 2 SOS sections, bilinear transform
+**Implementation**: matched z-transform, 2 SOS sections
 
 **Use when**: peak sound level measurement, where A-weighting over-penalizes bass
 
 **Compared to A**: rolls off below 31.5 Hz and above 8 kHz; flat 31.5 Hz–8 kHz
 
-</details>
 
 
 ### K-weighting
@@ -139,8 +133,6 @@ kWeighting(buffer, { fs: 48000 })   // exact ITU-R BS.1770 coefficients
 kWeighting(buffer, { fs: 44100 })   // approximated via biquad design
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Standard**: ITU-R BS.1770-4:2015[^2], EBU R128
 
@@ -154,7 +146,6 @@ kWeighting(buffer, { fs: 44100 })   // approximated via biquad design
 
 **Not for**: A-weighted SPL measurement (different shape, different standard)
 
-</details>
 
 
 ### ITU-R 468
@@ -167,8 +158,6 @@ Peaked noise weighting — peaks at +12.2 dB near 6.3 kHz — models how humans 
 itu468(buffer, { fs: 48000 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Standard**: ITU-R BS.468-4:1986[^3] (original CCIR 468, 1968)
 
@@ -182,7 +171,6 @@ itu468(buffer, { fs: 48000 })
 
 **Compared to A-weighting**: 6.3 kHz peak makes it harsher on hiss; preferred in European broadcast
 
-</details>
 
 
 ### RIAA
@@ -197,8 +185,6 @@ import { riaa } from 'audio-filter/weighting'
 riaa(phonoSignal, { fs: 44100 })   // correct vinyl playback
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Standard**: RIAA 1954, IEC 60098:1987[^4]
 
@@ -212,7 +198,6 @@ riaa(phonoSignal, { fs: 44100 })   // correct vinyl playback
 
 **Implementation**: 1 SOS section via bilinear transform, normalized 0 dB at 1 kHz
 
-</details>
 
 
 ## Auditory
@@ -237,8 +222,6 @@ Reuse `params` across blocks — state in `params._s`, gain cached in `params._g
 
 ![Gammatone bank (6 center frequencies)](plot/gammatone-bank.svg)
 
-<details>
-<summary>Reference</summary>
 
 **Origin**: Patterson et al. (1992)[^5]
 
@@ -252,7 +235,6 @@ Reuse `params` across blocks — state in `params._s`, gain cached in `params._g
 
 **Compared to Butterworth bandpass**: gammatone has asymmetric temporal envelope matching biological data
 
-</details>
 
 
 ### Octave bank
@@ -275,8 +257,6 @@ for (let band of bands) {
 }
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Standard**: IEC 61260-1:2014[^6], ANSI S1.11:2004
 
@@ -288,7 +268,6 @@ for (let band of bands) {
 
 **Use when**: acoustic measurement, noise assessment, spectrum visualization
 
-</details>
 
 
 ### ERB bank
@@ -314,8 +293,6 @@ for (let buf of stream) {
 }
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Origin**: Moore & Glasberg (1983, 1990)[^7]
 
@@ -327,7 +304,6 @@ for (let buf of stream) {
 
 **Compared to Bark**: ERB is more accurate above 500 Hz; Bark is the psychoacoustic masking model
 
-</details>
 
 
 ### Bark bank
@@ -350,8 +326,6 @@ for (let band of bands) {
 }
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Origin**: Zwicker (1961)[^8]
 
@@ -363,7 +337,6 @@ for (let band of bands) {
 
 **Compared to ERB**: Bark bands are wider and fewer; ERB is more accurate for hearing science
 
-</details>
 
 
 ## Analog
@@ -388,8 +361,6 @@ let silent = new Float64Array(4096); silent[0] = 0.01
 moogLadder(silent, { fc: 1000, resonance: 1, fs: 44100 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Patent**: Moog (1965) US3475623[^10]
 
@@ -403,7 +374,6 @@ moogLadder(silent, { fc: 1000, resonance: 1, fs: 44100 })
 
 **vs Diode ladder**: Moog saturates only at input; diode saturates at each stage — different character at high resonance
 
-</details>
 
 
 ### Diode ladder
@@ -419,8 +389,6 @@ let params = { fc: 500, resonance: 0.8, fs: 44100 }
 diodeLadder(buffer, params)
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Circuit**: Roland TB-303, EMS VCS3, EDP Wasp
 
@@ -432,7 +400,6 @@ diodeLadder(buffer, params)
 
 **Stability**: stable up to resonance=0.95; bounded output
 
-</details>
 
 
 ### Korg35
@@ -448,8 +415,6 @@ korg35(buffer, { fc: 1000, resonance: 0.5, type: 'lowpass',  fs: 44100 })
 korg35(buffer, { fc: 1000, resonance: 0.5, type: 'highpass', fs: 44100 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Circuit**: Korg MS-10/MS-20 (1978)
 
@@ -461,7 +426,6 @@ korg35(buffer, { fc: 1000, resonance: 0.5, type: 'highpass', fs: 44100 })
 
 **vs Moog ladder**: 2-pole ($-12\,\text{dB/oct}$) vs 4-pole ($-24\,\text{dB/oct}$); Korg35 has complementary HP mode
 
-</details>
 
 
 ## Speech
@@ -488,8 +452,6 @@ formant(excitation, {
 })   // vowel /i/
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Model**: parallel combination of second-order resonators, each modeling one vocal tract mode
 
@@ -503,7 +465,6 @@ formant(excitation, {
 
 **Not a substitute for**: LPC synthesis, which estimates formants automatically from a speech signal
 
-</details>
 
 
 ### Vocoder
@@ -520,8 +481,6 @@ import { vocoder } from 'audio-filter/speech'
 let output = vocoder(carrier, modulator, { bands: 16, fs: 44100 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Inventor**: Dudley (1939)[^13], Bell Labs
 
@@ -533,7 +492,6 @@ let output = vocoder(carrier, modulator, { bands: 16, fs: 44100 })
 
 **Use when**: voice effects, talkbox simulation, cross-synthesis, spectral morphing
 
-</details>
 
 
 ## EQ
@@ -558,8 +516,6 @@ graphicEq(buffer, {
 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Standard**: ISO 266:1997 center frequencies
 
@@ -571,7 +527,6 @@ graphicEq(buffer, {
 
 **vs Parametric EQ**: fixed centers but simpler — no per-band frequency or Q control
 
-</details>
 
 
 ### Parametric EQ
@@ -593,8 +548,6 @@ parametricEq(buffer, {
 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Implementation**: cascaded biquad sections — one per band; `peak` uses peaking EQ biquad, shelves use Zölzer shelf design[^16]
 
@@ -604,7 +557,6 @@ parametricEq(buffer, {
 
 **vs Graphic EQ**: fully adjustable $f_c$, Q, and gain per band; no fixed centers
 
-</details>
 
 
 ### Crossover
@@ -626,8 +578,6 @@ let mid = Float64Array.from(buffer); filter(mid, { coefs: bands[1] })
 let hi  = Float64Array.from(buffer); filter(hi,  { coefs: bands[2] })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Designers**: Linkwitz & Riley (1976)[^14]
 
@@ -639,7 +589,6 @@ let hi  = Float64Array.from(buffer); filter(hi,  { coefs: bands[2] })
 
 **Use when**: speaker system design, multi-band dynamics, band splitting for separate processing
 
-</details>
 
 
 ### Crossfeed
@@ -656,8 +605,6 @@ import { crossfeed } from 'audio-filter/eq'
 crossfeed(left, right, { fc: 700, level: 0.3, fs: 44100 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Origin**: Bauer (1961)[^15]; BS2B (Bauer Stereophonic-to-Binaural) algorithm
 
@@ -667,7 +614,6 @@ crossfeed(left, right, { fc: 700, level: 0.3, fs: 44100 })
 
 **fc**: models the head-shadow lowpass (~700 Hz is typical); **level**: 0.3 = mild, 0.5 = strong
 
-</details>
 
 
 ## Effect
@@ -690,8 +636,6 @@ let params = { R: 0.995 }
 dcBlocker(buffer, params)
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Topology**: zero at $z = 1$ (DC), pole at $z = R$
 
@@ -699,7 +643,6 @@ dcBlocker(buffer, params)
 
 **Use when**: removing DC bias before processing, preventing lowpass filter saturation
 
-</details>
 
 
 ### Comb filter
@@ -714,8 +657,6 @@ import { comb } from 'audio-filter/effect'
 comb(buffer, { delay: 100, gain: 0.6, type: 'feedback' })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Feedforward**: $H(z) = 1 + g \cdot z^{-D}$ — notches at $f = \frac{(2k+1) f_s}{2D}$
 
@@ -723,7 +664,6 @@ comb(buffer, { delay: 100, gain: 0.6, type: 'feedback' })
 
 **Use when**: flanging, chorus (with modulated delay), Karplus-Strong string synthesis, room mode modeling
 
-</details>
 
 
 ### Allpass
@@ -739,8 +679,6 @@ allpass.first(buffer, { a: 0.5 })                          // coefficient a
 allpass.second(buffer, { fc: 1000, Q: 1, fs: 44100 })      // center fc, quality Q
 ```
 
-<details>
-<summary>Reference</summary>
 
 **First order**: $H(z) = \dfrac{a + z^{-1}}{1 + a z^{-1}}$ — pole at $z = -a$, 180° phase shift at Nyquist
 
@@ -748,7 +686,6 @@ allpass.second(buffer, { fc: 1000, Q: 1, fs: 44100 })      // center fc, quality
 
 **Use when**: phase equalization, reverb building blocks (Schroeder reverb), stereo widening
 
-</details>
 
 
 ### Pre-emphasis / de-emphasis
@@ -766,8 +703,6 @@ emphasis(buffer, { alpha: 0.97 })    // before encoding
 deemphasis(buffer, { alpha: 0.97 })  // after decoding — exact inverse
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Rolloff**: emphasis boosts above $f_c = \frac{(1-\alpha) f_s}{2\pi}$ — $\alpha = 0.97$ gives ~420 Hz at 44.1 kHz
 
@@ -775,7 +710,6 @@ deemphasis(buffer, { alpha: 0.97 })  // after decoding — exact inverse
 
 **Inverse pair**: `deemphasis` exactly cancels `emphasis` — $H_e(z) \cdot H_d(z) = 1$
 
-</details>
 
 
 ### Resonator
@@ -794,8 +728,6 @@ resonator(buffer, { fc: 440, bw: 20, fs: 44100 })
 
 Unlike a peaking EQ section, peak gain is always 0 dB regardless of Q — stable for synthesis use.
 
-<details>
-<summary>Reference</summary>
 
 **Pole radius**: $R = e^{-\pi \cdot bw / f_s}$ — controls bandwidth; $bw \to 0$ gives infinite Q
 
@@ -805,7 +737,6 @@ Unlike a peaking EQ section, peak gain is always 0 dB regardless of Q — stable
 
 **vs Peaking EQ**: resonator has fixed 0 dB peak; peaking EQ has variable gain — use resonator for synthesis, EQ for mixing
 
-</details>
 
 
 ### Envelope follower
@@ -821,8 +752,6 @@ let params = { attack: 0.001, release: 0.05, fs: 44100 }
 envelope(buffer, params)   // buffer replaced with envelope signal (0–1)
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Attack**: $y[n] = \alpha_A \cdot y[n{-}1] + (1-\alpha_A)|x[n]|$ when $|x[n]| > y[n{-}1]$
 
@@ -832,7 +761,6 @@ envelope(buffer, params)   // buffer replaced with envelope signal (0–1)
 
 **Use when**: compressor/limiter sidechain, auto-wah, ducking, VCA control, gain riding
 
-</details>
 
 
 ### Slew limiter
@@ -847,8 +775,6 @@ import { slewLimiter } from 'audio-filter/effect'
 slewLimiter(buffer, { rise: 500, fall: 200, fs: 44100 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Operation**: clips the per-sample derivative — $\Delta y \leq \text{rise}/f_s$ and $\Delta y \geq -\text{fall}/f_s$
 
@@ -856,7 +782,6 @@ slewLimiter(buffer, { rise: 500, fall: 200, fs: 44100 })
 
 **Use when**: smoothing control signals and automation, click prevention, portamento/glide, analog CV emulation
 
-</details>
 
 
 ### Noise shaping
@@ -871,8 +796,6 @@ import { noiseShaping } from 'audio-filter/effect'
 noiseShaping(buffer, { bits: 16 })   // dither to 16-bit, noise shaped above 10 kHz
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Principle**: $y[n] = Q(x[n] + e_\text{shaped}[n])$ — quantization error fed back through shaping filter
 
@@ -884,7 +807,6 @@ noiseShaping(buffer, { bits: 16 })   // dither to 16-bit, noise shaped above 10 
 
 **Reference**: Lipshitz, Wannamaker & Vanderkooy (1992)[^17]
 
-</details>
 
 
 ### Pink noise
@@ -901,8 +823,6 @@ for (let i = 0; i < buf.length; i++) buf[i] = Math.random() * 2 - 1
 pinkNoise(buf, {})   // white → pink (−3 dB/oct spectral slope)
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Spectrum**: power spectral density $S(f) \propto 1/f$ — $-3\,\text{dB/oct}$ slope, equal energy per octave
 
@@ -912,7 +832,6 @@ pinkNoise(buf, {})   // white → pink (−3 dB/oct spectral slope)
 
 **vs White noise**: white noise has equal energy per Hz ($-0\,\text{dB/oct}$); pink is perceptually flat
 
-</details>
 
 
 ### Spectral tilt
@@ -928,8 +847,6 @@ spectralTilt(buffer, { slope: -3, fs: 44100 })   // −3 dB/oct: brownian noise 
 spectralTilt(buffer, { slope: +3, fs: 44100 })   // +3 dB/oct: pre-emphasis for coding
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Model**: first-order IIR approximation of fractional power-law spectrum $S(f) \propto f^\alpha$
 
@@ -937,7 +854,6 @@ spectralTilt(buffer, { slope: +3, fs: 44100 })   // +3 dB/oct: pre-emphasis for 
 
 **Use when**: matching microphone/speaker frequency responses, spectral coloring, noise synthesis
 
-</details>
 
 
 ### Variable bandwidth
@@ -952,8 +868,6 @@ import { variableBandwidth } from 'audio-filter/effect'
 variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 ```
 
-<details>
-<summary>Reference</summary>
 
 **Implementation**: biquad lowpass with per-sample coefficient update using smooth interpolation
 
@@ -963,7 +877,6 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 
 **vs Direct biquad**: recalculating biquad coefficients per sample causes zipper noise; variable bandwidth avoids this
 
-</details>
 
 
 ## Filter selection guide
