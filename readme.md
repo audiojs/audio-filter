@@ -1,7 +1,6 @@
 # audio-filter [![ci](https://github.com/audiojs/audio-filter/actions/workflows/ci.yml/badge.svg)](https://github.com/audiojs/audio-filter/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/audio-filter)](https://npmjs.org/package/audio-filter)
 
 Canonical audio filter implementations.<br>
-Covering [weighting](#weighting), [auditory](#auditory), [analog](#analog), [speech](#speech), [eq](#eq), [effect](#effect) domains.
 
 <table><tr><td valign="top">
 
