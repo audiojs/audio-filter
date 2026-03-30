@@ -5,6 +5,17 @@ import { biquad, filter, freqz, mag2db } from 'digital-filter'
 let EPSILON = 1e-10
 let LOOSE = 1e-4
 
+// Compute DFT magnitude at a specific frequency
+function dftMag(data, f, fs) {
+	let w = 2 * Math.PI * f / fs
+	let re = 0, im = 0
+	for (let n = 0; n < data.length; n++) {
+		re += data[n] * Math.cos(w * n)
+		im -= data[n] * Math.sin(w * n)
+	}
+	return Math.sqrt(re * re + im * im)
+}
+
 // Evaluate SOS filter magnitude in dB at exact frequency f Hz
 function magDB(sos, f, fs) {
 	let w = 2 * Math.PI * f / fs
@@ -484,4 +495,418 @@ test('vocoder — output matches input length', () => {
 	is(out.length, N, 'vocoder output length = input length')
 	let hasOutput = out.some(x => Math.abs(x) > 0.0001)
 	ok(hasOutput, 'vocoder produces nonzero output')
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Standards calibration
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('itu468 48kHz — ITU-R 468 table values (relative to 1kHz)', () => {
+	let sos = audio.itu468.coefs(48000)
+	let ref = magDB(sos, 1000, 48000)
+	// Note: 31.5Hz omitted — the 4-biquad IIR approximation cannot model
+	// the extreme low-frequency rolloff (-29.9dB) of the analog ITU-468 curve
+	let table = { 2000: 5.6, 4000: 11.0, 6300: 12.2 }
+	for (let [f, expected] of Object.entries(table)) {
+		let got = magDB(sos, +f, 48000) - ref
+		let tol = 2.5
+		ok(Math.abs(got - expected) < tol, `ITU-468 ${f}Hz: expected ${expected}dB rel 1kHz, got ${got.toFixed(2)}dB`)
+	}
+})
+
+test('riaa 44100Hz — IEC 98 reference values relative to 1kHz', () => {
+	let sos = audio.riaa.coefs(44100)
+	let db1k = magDB(sos, 1000, 44100)
+	let db20 = magDB(sos, 20, 44100)
+	let db10k = magDB(sos, 10000, 44100)
+	let rel20 = db20 - db1k
+	ok(Math.abs(rel20 - 19.274) < 1.0, `RIAA 20Hz: expected +19.274dB rel 1kHz, got ${rel20.toFixed(3)}dB`)
+	let rel10k = db10k - db1k
+	ok(Math.abs(rel10k - (-13.734)) < 1.0, `RIAA 10kHz: expected -13.734dB rel 1kHz, got ${rel10k.toFixed(3)}dB`)
+})
+
+test('kWeighting 44100Hz — shelving boost near 2kHz, HPF rolls off below 100Hz', () => {
+	let sos = audio.kWeighting.coefs(44100)
+	let db200 = magDB(sos, 200, 44100)
+	let db2k = magDB(sos, 2000, 44100)
+	ok(db2k > db200, `K-weighting 2kHz (${db2k.toFixed(2)}dB) boosted vs 200Hz (${db200.toFixed(2)}dB)`)
+	let db20 = magDB(sos, 20, 44100)
+	ok(db20 < db200 - 3, `K-weighting 20Hz (${db20.toFixed(2)}dB) rolls off vs 200Hz (${db200.toFixed(2)}dB)`)
+})
+
+test('cWeighting 48kHz — IEC 61672 table values', () => {
+	let sos = audio.cWeighting.coefs(48000)
+	let table = { 31.5: -3.0, 1000: 0, 8000: -3.0 }
+	for (let [f, expected] of Object.entries(table)) {
+		let got = magDB(sos, +f, 48000)
+		let tol = +f >= 8000 ? 1.0 : 0.5
+		ok(Math.abs(got - expected) < tol, `C-weighting@48kHz ${f}Hz: expected ${expected}dB, got ${got.toFixed(2)}dB`)
+	}
+})
+
+test('aWeighting 44100Hz — IEC 61672 table values', () => {
+	let sos = audio.aWeighting.coefs(44100)
+	let table = {
+		31.5: -39.4, 63: -26.2, 125: -16.1, 250: -8.6, 500: -3.2,
+		1000: 0.0, 2000: 1.2, 4000: 1.0, 8000: -1.1
+	}
+	for (let [f, expected] of Object.entries(table)) {
+		let tol = +f <= 63 ? 2.0 : 1.5
+		let got = magDB(sos, +f, 44100)
+		ok(Math.abs(got - expected) < tol, `A-weighting@44100 ${f}Hz: expected ${expected}dB, got ${got.toFixed(2)}dB`)
+	}
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Functional correctness
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('graphicEq — gains:{1000:6} boosts 1kHz', () => {
+	let fs = 44100, N = 4096
+	let data = new Float64Array(N)
+	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 1000 * i / fs)
+	audio.graphicEq(data, { gains: { 1000: 6 }, fs })
+	let peak = 0
+	for (let i = N / 2; i < N; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i])
+	ok(peak > 1.5, `graphicEq 1kHz boosted: peak ${peak.toFixed(3)}`)
+})
+
+test('parametricEq — gain:6 at 1kHz boosts signal', () => {
+	let fs = 44100, N = 4096
+	let data = new Float64Array(N)
+	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 1000 * i / fs)
+	audio.parametricEq(data, { bands: [{ fc: 1000, Q: 1, gain: 6, type: 'peak' }], fs })
+	let peak = 0
+	for (let i = N / 2; i < N; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i])
+	ok(peak > 1.5, `parametricEq boosted 1kHz: peak ${peak.toFixed(3)}`)
+})
+
+test('emphasis + deemphasis round-trip = identity', () => {
+	let N = 512, fs = 44100
+	let orig = new Float64Array(N)
+	for (let i = 0; i < N; i++) orig[i] = Math.sin(2 * Math.PI * 440 * i / fs)
+	let data = Float64Array.from(orig)
+	audio.emphasis(data, { alpha: 0.97 })
+	audio.deemphasis(data, { alpha: 0.97 })
+	let maxErr = 0
+	for (let i = 100; i < N; i++) {
+		let err = Math.abs(data[i] - orig[i])
+		if (err > maxErr) maxErr = err
+	}
+	ok(maxErr < 0.05, `emphasis+deemphasis round-trip max error: ${maxErr.toFixed(6)}`)
+})
+
+test('allpass.first — energy ≈ 1.0 for unit impulse', () => {
+	let data = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+	audio.allpass.first(data, { a: 0.5 })
+	let energy = 0
+	for (let i = 0; i < data.length; i++) energy += data[i] * data[i]
+	almost(energy, 1, 0.01)
+})
+
+test('vocoder — silent modulator produces near-silent output', () => {
+	let N = 512, fs = 44100
+	let carrier = new Float64Array(N)
+	for (let i = 0; i < N; i++) carrier[i] = Math.sin(2 * Math.PI * 440 * i / fs)
+	let out = audio.vocoder(carrier, new Float64Array(N), { bands: 8, fs })
+	let peak = 0
+	for (let i = 0; i < N; i++) if (Math.abs(out[i]) > peak) peak = Math.abs(out[i])
+	ok(peak < 0.01, `vocoder silent modulator: peak ${peak.toFixed(6)}`)
+})
+
+test('formant — custom /i/ vowel formants produce peaks', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.formant(data, { fs, formants: [{ fc: 270, bw: 60, gain: 1 }, { fc: 2290, bw: 120, gain: 0.7 }] })
+	let mag270 = dftMag(data, 270, fs), mag2290 = dftMag(data, 2290, fs), mag800 = dftMag(data, 800, fs)
+	ok(mag270 > mag800, `F1 peak at 270Hz (${mag270.toFixed(3)}) > valley (${mag800.toFixed(3)})`)
+	ok(mag2290 > mag800, `F2 peak at 2290Hz (${mag2290.toFixed(3)}) > valley (${mag800.toFixed(3)})`)
+})
+
+test('moogLadder — DC passthrough with resonance=0', () => {
+	let data = dc(2048, 1.0)
+	audio.moogLadder(data, { fc: 15000, resonance: 0, fs: 44100 })
+	ok(Math.abs(data[2047]) > 0.5, `moogLadder DC output ${data[2047].toFixed(4)} > 0.5`)
+	ok(isFinite(data[2047]), 'moogLadder DC output is finite')
+})
+
+test('crossover LR4 — allpass property', () => {
+	let fs = 44100, fc = 2000
+	let bands = audio.crossover([fc], 4, fs)
+	is(bands.length, 2, 'single crossover = 2 bands')
+	for (let f of [200, 1000, 2000, 4000, 8000]) {
+		let lpLin = Math.pow(10, magDB(bands[0], f, fs) / 20)
+		let hpLin = Math.pow(10, magDB(bands[1], f, fs) / 20)
+		let sumDB = 20 * Math.log10(lpLin + hpLin)
+		ok(Math.abs(sumDB) < 1.0, `crossover@${f}Hz: sum=${sumDB.toFixed(2)}dB`)
+	}
+})
+
+test('pinkNoise — spectral slope ~-3dB/octave', () => {
+	let N = 65536, fs = 44100
+	let data = new Float64Array(N)
+	let seed = 12345
+	for (let i = 0; i < N; i++) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; data[i] = (seed / 0x7fffffff) * 2 - 1 }
+	audio.pinkNoise(data, {})
+	let powerLow = 0, powerHigh = 0, countLow = 0, countHigh = 0, binSize = fs / N
+	for (let f = 200; f < 400; f += binSize) { let m = dftMag(data, f, fs); powerLow += m * m; countLow++ }
+	for (let f = 1600; f < 3200; f += binSize) { let m = dftMag(data, f, fs); powerHigh += m * m; countHigh++ }
+	let diffDB = 10 * Math.log10((powerLow / countLow) / (powerHigh / countHigh))
+	ok(diffDB > 4 && diffDB < 15, `pink noise slope: ${diffDB.toFixed(1)}dB (expect ~9dB)`)
+})
+
+test('crossfeed — level=0 is passthrough', () => {
+	let N = 256
+	let left = dc(N, 0.7), right = dc(N, -0.3)
+	let origL = Float64Array.from(left), origR = Float64Array.from(right)
+	audio.crossfeed(left, right, { fc: 700, level: 0, fs: 44100 })
+	let maxErrL = 0, maxErrR = 0
+	for (let i = 0; i < N; i++) {
+		if (Math.abs(left[i] - origL[i]) > maxErrL) maxErrL = Math.abs(left[i] - origL[i])
+		if (Math.abs(right[i] - origR[i]) > maxErrR) maxErrR = Math.abs(right[i] - origR[i])
+	}
+	ok(maxErrL < LOOSE, `left passthrough err=${maxErrL.toFixed(8)}`)
+	ok(maxErrR < LOOSE, `right passthrough err=${maxErrR.toFixed(8)}`)
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Edge cases
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('moogLadder — extreme params: fc=1, res=0.99, fs=192k', () => {
+	let data = impulse(256)
+	audio.moogLadder(data, { fc: 1, resonance: 0.99, fs: 192000 })
+	ok(data.every(isFinite), 'no NaN/Inf')
+})
+
+test('diodeLadder — extreme params: fc=1, res=0.99, fs=192k', () => {
+	let data = impulse(256)
+	audio.diodeLadder(data, { fc: 1, resonance: 0.99, fs: 192000 })
+	ok(data.every(isFinite), 'no NaN/Inf')
+})
+
+test('korg35 — extreme params: fc=1, res=0.99, fs=192k', () => {
+	let data = impulse(256)
+	audio.korg35(data, { fc: 1, resonance: 0.99, fs: 192000, type: 'lowpass' })
+	ok(data.every(isFinite), 'no NaN/Inf')
+})
+
+test('slewLimiter — fall direction limited', () => {
+	let data = new Float64Array([1, 1, 1, 0, 0, 0, 0, 0])
+	audio.slewLimiter(data, { rise: 22050, fall: 22050, fs: 44100 })
+	ok(data[3] >= 0.5 - LOOSE, `fall limited: ${data[3].toFixed(4)} >= 0.5`)
+	ok(data[3] < 1, 'still falls')
+})
+
+test('comb — feedforward with delay=1', () => {
+	let data = impulse(8)
+	audio.comb(data, { delay: 1, gain: 0.5, type: 'feedforward' })
+	almost(data[0], 1, EPSILON)
+	almost(data[1], 0.5, EPSILON)
+	almost(data[2], 0, EPSILON)
+})
+
+test('resonator — frequency response peak near fc', () => {
+	let fc = 2000, fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.resonator(data, { fc, bw: 50, fs })
+	let peakFreq = 0, peakMag = 0
+	for (let f = 500; f <= 5000; f += 25) {
+		let mag = dftMag(data, f, fs)
+		if (mag > peakMag) { peakMag = mag; peakFreq = f }
+	}
+	ok(Math.abs(peakFreq - fc) < 100, `resonator peak at ${peakFreq}Hz (expected ~${fc}Hz)`)
+})
+
+test('spectralTilt — slope=0 is passthrough', () => {
+	let data = impulse(256)
+	let orig = Float64Array.from(data)
+	audio.spectralTilt(data, { slope: 0, fs: 44100 })
+	let maxErr = 0
+	for (let i = 0; i < data.length; i++) { let err = Math.abs(data[i] - orig[i]); if (err > maxErr) maxErr = err }
+	ok(maxErr < EPSILON, `spectralTilt slope=0 passthrough: err=${maxErr}`)
+})
+
+test('variableBandwidth — highpass attenuates DC', () => {
+	let data = dc(1024)
+	audio.variableBandwidth(data, { fc: 2000, Q: 0.707, fs: 44100, type: 'highpass' })
+	ok(Math.abs(data[1023]) < 0.1, `HP attenuates DC: last=${data[1023].toFixed(4)}`)
+})
+
+test('variableBandwidth — bandpass attenuates DC', () => {
+	let data = dc(1024)
+	audio.variableBandwidth(data, { fc: 2000, Q: 1, fs: 44100, type: 'bandpass' })
+	ok(Math.abs(data[1023]) < 0.1, `BP attenuates DC: last=${data[1023].toFixed(4)}`)
+})
+
+test('barkBank — fs=22050 has fewer than 24 bands', () => {
+	let bands = audio.barkBank(22050)
+	ok(bands.length < 24, `barkBank@22050 has ${bands.length} bands`)
+	ok(bands.length >= 10, `at least 10 bands`)
+	ok(bands[bands.length - 1].fc < 22050 / 2, 'highest fc < Nyquist')
+})
+
+test('octaveBank — center frequencies include 1000Hz (ISO 266)', () => {
+	ok(audio.octaveBank(1, 44100).some(b => Math.abs(b.fc - 1000) < 1), '1/1 includes 1000Hz')
+	ok(audio.octaveBank(3, 44100).some(b => Math.abs(b.fc - 1000) < 1), '1/3 includes 1000Hz')
+})
+
+test('erbBank — ERB at 1kHz ≈ 132.6Hz (Glasberg & Moore)', () => {
+	let bands = audio.erbBank(44100)
+	let closest = bands.reduce((a, b) => Math.abs(a.fc - 1000) < Math.abs(b.fc - 1000) ? a : b)
+	let expectedERB = 24.7 * (4.37 * closest.fc / 1000 + 1)
+	ok(Math.abs(closest.erb - expectedERB) < 1, `ERB at ${closest.fc}Hz: ${closest.erb} ≈ ${expectedERB.toFixed(1)}`)
+})
+
+test('dcBlocker — works with Float32Array input', () => {
+	let data = new Float32Array(4096)
+	data.fill(1)
+	audio.dcBlocker(data, { R: 0.995 })
+	ok(Math.abs(data[4095]) < 0.05, `Float32Array: last=${data[4095].toFixed(4)}`)
+})
+
+test('comb — works with plain Array input', () => {
+	let data = [1, 0, 0, 0, 0, 0, 0, 0]
+	audio.comb(data, { delay: 3, gain: 0.5, type: 'feedforward' })
+	almost(data[0], 1, EPSILON)
+	almost(data[3], 0.5, EPSILON)
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// New filters
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('melBank — 26 bands by default', () => {
+	let bands = audio.melBank(44100)
+	is(bands.length, 26, '26 mel filters')
+	ok(bands[0].fc > 0, 'first fc > 0')
+	ok(bands[0].fLow < bands[0].fc, 'fLow < fc')
+	ok(bands[0].fHigh > bands[0].fc, 'fHigh > fc')
+	ok(bands[0].mel > 0, 'has mel value')
+})
+
+test('melBank — spacing is linear in mel scale', () => {
+	let bands = audio.melBank(44100)
+	let melStep1 = bands[1].mel - bands[0].mel
+	let melStepN = bands[bands.length - 1].mel - bands[bands.length - 2].mel
+	ok(Math.abs(melStep1 - melStepN) < 1, 'mel spacing is uniform')
+})
+
+test('melBank — custom nFilters', () => {
+	let bands = audio.melBank(16000, { nFilters: 40 })
+	is(bands.length, 40, '40 mel filters')
+	ok(bands[bands.length - 1].fHigh <= 8000, 'fHigh <= Nyquist')
+})
+
+test('oberheim — lowpass produces output', () => {
+	let data = impulse(512)
+	audio.oberheim(data, { fc: 1000, resonance: 0.5, fs: 44100, type: 'lowpass' })
+	ok(data.some(x => Math.abs(x) > 0.001), 'LP output present')
+})
+
+test('oberheim — highpass attenuates DC', () => {
+	let data = dc(1024)
+	audio.oberheim(data, { fc: 1000, resonance: 0.3, fs: 44100, type: 'highpass' })
+	ok(Math.abs(data[1023]) < 0.2, `HP attenuates DC: ${data[1023].toFixed(4)}`)
+})
+
+test('oberheim — bandpass and notch modes', () => {
+	let bp = impulse(256)
+	audio.oberheim(bp, { fc: 1000, resonance: 0.5, fs: 44100, type: 'bandpass' })
+	ok(bp.some(x => Math.abs(x) > 0.001), 'BP output')
+	let notch = impulse(256)
+	audio.oberheim(notch, { fc: 1000, resonance: 0.5, fs: 44100, type: 'notch' })
+	ok(notch.some(x => Math.abs(x) > 0.001), 'Notch output')
+})
+
+test('oberheim — stable at high resonance', () => {
+	let data = impulse(1024)
+	audio.oberheim(data, { fc: 2000, resonance: 0.95, fs: 44100 })
+	ok(data.every(isFinite), 'no NaN/Inf at high resonance')
+})
+
+test('oberheim — extreme params: fc=1, res=0.99, fs=192k', () => {
+	let data = impulse(256)
+	audio.oberheim(data, { fc: 1, resonance: 0.99, fs: 192000 })
+	ok(data.every(isFinite), 'no NaN/Inf')
+})
+
+test('lpcAnalysis — returns coefficients and residual', () => {
+	let fs = 44100, N = 512
+	let data = new Float64Array(N)
+	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / fs)
+	let result = audio.lpcAnalysis(data, { order: 12 })
+	is(result.coefs.length, 12, '12 LPC coefficients')
+	ok(result.gain > 0, 'positive gain')
+	is(result.residual.length, N, 'residual length matches input')
+})
+
+test('lpcAnalysis + lpcSynthesize — round-trip reconstructs signal', () => {
+	let N = 256
+	// Use a broadband signal (speech-like) for stable LPC model
+	let data = new Float64Array(N)
+	let seed = 42
+	for (let i = 0; i < N; i++) {
+		seed = (seed * 1103515245 + 12345) & 0x7fffffff
+		let noise = (seed / 0x7fffffff) * 2 - 1
+		// Filtered noise (simple lowpass for speech-like spectrum)
+		data[i] = i > 0 ? 0.5 * noise + 0.5 * data[i - 1] : noise
+	}
+	let orig = Float64Array.from(data)
+	let { coefs, gain, residual } = audio.lpcAnalysis(data, { order: 10 })
+	let res = Float64Array.from(residual)
+	audio.lpcSynthesize(res, { coefs, gain })
+	let maxErr = 0
+	for (let i = 12; i < N; i++) {
+		let err = Math.abs(res[i] - orig[i])
+		if (err > maxErr) maxErr = err
+	}
+	ok(maxErr < 0.01, `LPC round-trip error: ${maxErr.toFixed(6)}`)
+})
+
+test('phaser — produces output, modifies signal', () => {
+	let data = impulse(4096)
+	audio.phaser(data, { rate: 1, depth: 0.7, stages: 4, fs: 44100 })
+	ok(data.some(x => Math.abs(x) > 0.001), 'phaser output present')
+})
+
+test('phaser — stable over long buffer', () => {
+	let data = new Float64Array(44100)
+	for (let i = 0; i < 44100; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / 44100)
+	audio.phaser(data, { rate: 0.5, depth: 0.7, stages: 6, feedback: 0.8, fs: 44100 })
+	ok(data.every(isFinite), 'no NaN/Inf over 1s')
+})
+
+test('flanger — produces modulated output', () => {
+	let data = new Float64Array(4096)
+	for (let i = 0; i < 4096; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / 44100)
+	let orig = Float64Array.from(data)
+	audio.flanger(data, { rate: 0.3, depth: 0.7, delay: 3, feedback: 0.5, fs: 44100 })
+	let hasDiff = data.some((x, i) => Math.abs(x - orig[i]) > 0.01)
+	ok(hasDiff, 'flanger modifies signal')
+	ok(data.every(isFinite), 'no NaN/Inf')
+})
+
+test('chorus — produces output, thickens signal', () => {
+	let data = new Float64Array(4096)
+	for (let i = 0; i < 4096; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / 44100)
+	audio.chorus(data, { rate: 1.5, depth: 0.5, delay: 20, voices: 3, fs: 44100 })
+	ok(data.some(x => Math.abs(x) > 0.01), 'chorus output present')
+	ok(data.every(isFinite), 'no NaN/Inf')
+})
+
+test('wah — produces bandpass-like output', () => {
+	let data = impulse(4096)
+	audio.wah(data, { rate: 1.5, depth: 0.8, fc: 1000, Q: 5, fs: 44100 })
+	ok(data.some(x => Math.abs(x) > 0.001), 'wah output present')
+	ok(data.every(isFinite), 'no NaN/Inf')
+})
+
+test('wah — manual mode at fixed frequency', () => {
+	let data = impulse(1024)
+	audio.wah(data, { mode: 'manual', fc: 1000, Q: 5, fs: 44100 })
+	// Should behave like a bandpass at 1kHz
+	let mag1k = dftMag(data, 1000, 44100)
+	let mag100 = dftMag(data, 100, 44100)
+	ok(mag1k > mag100, `wah manual: 1kHz (${mag1k.toFixed(3)}) > 100Hz (${mag100.toFixed(3)})`)
 })

@@ -97,9 +97,50 @@ write('korg35', plotCompare([
 	['HP', impulse(af.korg35, {fc: 1000, resonance: 0.3, type: 'highpass', fs: FS})],
 ], 'Korg35 fc=1kHz, resonance=0.3'))
 
+// ── Auditory (cont.) ──
+
+{
+	let bands = af.melBank(FS, { nFilters: 26 })
+	let sampled = bands.filter((_, i) => i % 4 === 0)
+	write('mel-bank', plotCompare(
+		sampled.map(b => [`${b.fc < 1000 ? b.fc.toFixed(0) : (b.fc/1000).toFixed(1)+'k'}`, (() => {
+			// Triangular filter impulse response approximation — show as bandpass at fc
+			let d = new Float64Array(2048); d[0] = 1
+			af.gammatone(d, {fc: b.fc, fs: FS})
+			return d.slice(0, 512)
+		})()]),
+		'Mel-scale filter bank (26 bands, every 4th shown)'
+	))
+}
+
+// ── Analog (cont.) ──
+
+write('oberheim', plotCompare([
+	['LP', impulse(af.oberheim, {fc: 1000, resonance: 0.5, type: 'lowpass',  fs: FS})],
+	['HP', impulse(af.oberheim, {fc: 1000, resonance: 0.5, type: 'highpass', fs: FS})],
+	['BP', impulse(af.oberheim, {fc: 1000, resonance: 0.5, type: 'bandpass', fs: FS})],
+	['Notch', impulse(af.oberheim, {fc: 1000, resonance: 0.5, type: 'notch', fs: FS})],
+], 'Oberheim SEM fc=1kHz, resonance=0.5'))
+
 // ── Speech ──
 
 write('formant', plotFir(impulse(af.formant, {fs: FS}), 'Formant filter (vowel /a/)'))
+
+{
+	let N = 512
+	let data = new Float64Array(N)
+	let seed = 42
+	for (let i = 0; i < N; i++) { seed = (seed * 1103515245 + 12345) & 0x7fffffff; data[i] = i > 0 ? 0.3 * ((seed/0x7fffffff)*2-1) + 0.7 * data[i-1] : 0 }
+	let orig = Float64Array.from(data)
+	let { coefs, gain, residual } = af.lpcAnalysis(data, { order: 10 })
+	let synth = Float64Array.from(residual)
+	af.lpcSynthesize(synth, { coefs, gain })
+	write('lpc', plotCompare([
+		['Original', orig.slice(0, 256)],
+		['Residual', residual.slice(0, 256)],
+		['Synthesized', synth.slice(0, 256)],
+	], 'LPC analysis/synthesis (order 10)'))
+}
 
 // ── EQ ──
 
@@ -145,6 +186,37 @@ write('noise-shaping',     plotFir(impulse(af.noiseShaping,     {bits: 16}),    
 	for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
 	af.pinkNoise(data, {})
 	write('pink-noise', plotFir(data.slice(0, 512), 'Pink noise (from white noise input)'))
+}
+
+// ── Effect (new) ──
+
+{
+	let N = 4096
+	let data = new Float64Array(N)
+	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / FS) * 0.5
+	af.phaser(data, { rate: 1, depth: 0.7, stages: 4, feedback: 0.6, fc: 1000, fs: FS })
+	write('phaser', plotFir(data.slice(0, 512), 'Phaser (440Hz sine, rate=1Hz, 4 stages)'))
+}
+
+{
+	let N = 4096
+	let data = new Float64Array(N)
+	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / FS) * 0.5
+	af.flanger(data, { rate: 0.3, depth: 0.7, delay: 3, feedback: 0.5, fs: FS })
+	write('flanger', plotFir(data.slice(0, 512), 'Flanger (440Hz sine, delay=3ms)'))
+}
+
+{
+	let N = 4096
+	let data = new Float64Array(N)
+	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / FS) * 0.5
+	af.chorus(data, { rate: 1.5, depth: 0.5, delay: 20, voices: 3, fs: FS })
+	write('chorus', plotFir(data.slice(0, 512), 'Chorus (440Hz sine, 3 voices, delay=20ms)'))
+}
+
+{
+	let data = impulse(af.wah, { rate: 1.5, depth: 0.8, fc: 1000, Q: 5, fs: FS }, 4096, 512)
+	write('wah', plotFir(data, 'Wah-wah (impulse response, fc=1kHz, Q=5)'))
 }
 
 console.log('SVGs generated in plot/')

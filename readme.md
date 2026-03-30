@@ -1,8 +1,31 @@
 # audio-filter [![ci](https://github.com/audiojs/audio-filter/actions/workflows/ci.yml/badge.svg)](https://github.com/audiojs/audio-filter/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/audio-filter)](https://npmjs.org/package/audio-filter)
 
-Canonical audio filters implementations.<br>
-Covering
-[weighting](#weighting), [auditory](#auditory), [analog](#analog), [speech](#speech), [eq](#eq), [effect](#effect) domains.
+Canonical audio filter implementations.<br>
+Covering [weighting](#weighting), [auditory](#auditory), [analog](#analog), [speech](#speech), [eq](#eq), [effect](#effect) domains.
+
+<table><tr><td valign="top">
+
+**[Weighting](#weighting)**<br>
+<sub>[A-weighting](#a-weighting) · [C-weighting](#c-weighting) · [K-weighting](#k-weighting) · [ITU-R 468](#itu-r-468) · [RIAA](#riaa)</sub>
+
+**[Auditory](#auditory)**<br>
+<sub>[Gammatone](#gammatone) · [Octave bank](#octave-bank) · [ERB bank](#erb-bank) · [Bark bank](#bark-bank) · [Mel bank](#mel-bank)</sub>
+
+**[Analog](#analog)**<br>
+<sub>[Moog ladder](#moog-ladder) · [Diode ladder](#diode-ladder) · [Korg35](#korg35) · [Oberheim](#oberheim)</sub>
+
+</td><td valign="top">
+
+**[Speech](#speech)**<br>
+<sub>[Formant](#formant) · [Vocoder](#vocoder) · [LPC](#lpc)</sub>
+
+**[EQ](#eq)**<br>
+<sub>[Graphic EQ](#graphic-eq) · [Parametric EQ](#parametric-eq) · [Crossover](#crossover) · [Crossfeed](#crossfeed)</sub>
+
+**[Effect](#effect)**<br>
+<sub>[DC blocker](#dc-blocker) · [Comb](#comb-filter) · [Allpass](#allpass) · [Pre-emphasis](#pre-emphasis--de-emphasis) · [Resonator](#resonator) · [Envelope](#envelope-follower) · [Slew limiter](#slew-limiter) · [Noise shaping](#noise-shaping) · [Pink noise](#pink-noise) · [Spectral tilt](#spectral-tilt) · [Variable bandwidth](#variable-bandwidth) · [Phaser](#phaser) · [Flanger](#flanger) · [Chorus](#chorus) · [Wah](#wah)</sub>
+
+</td></tr></table>
 
 ## Install
 
@@ -14,13 +37,13 @@ npm install audio-filter
 // import everything
 import * as filter from 'audio-filter'
 
-// import individually
-import aWeighting from 'audio-filter/weighting/a-weighting.js'
-import gammatone from 'audio-filter/auditory/gammatone.js'
-import korg35 from 'audio-filter/analog/korg35.js'
-import vocoder from 'audio-filter/speech/vocoder.js'
-import graphicEq from 'audio-filter/eq/graphic-eq.js'
-import comb from 'audio-filter/effect/comb.js'
+// import by domain
+import { aWeighting, kWeighting } from 'audio-filter/weighting'
+import { gammatone, melBank } from 'audio-filter/auditory'
+import { moogLadder, oberheim } from 'audio-filter/analog'
+import { vocoder, lpcAnalysis } from 'audio-filter/speech'
+import { parametricEq, crossover } from 'audio-filter/eq'
+import { phaser, chorus, wah } from 'audio-filter/effect'
 ```
 
 
@@ -284,6 +307,28 @@ for (let band of bands) {
 ![Bark critical band filter bank](plot/bark-bank.svg)
 
 
+### Mel bank
+
+Mel-frequency triangular filter bank — the standard front-end for speech recognition and music information retrieval.
+
+**Scale**: $\text{mel}(f) = 2595 \log_{10}(1 + f/700)$ (O'Shaughnessy variant)[^18]<br>
+**Bands**: equally spaced in mel scale; each band is a triangle spanning 3 adjacent mel points<br>
+**Returns**: array of `{ fc, fLow, fHigh, mel }` — band descriptors for MFCC computation
+
+```js
+import { melBank } from 'audio-filter/auditory'
+
+let bands = melBank(44100)                          // 26 bands (default)
+let bands = melBank(16000, { nFilters: 40 })        // 40 bands, telephony rate
+let bands = melBank(44100, { fmin: 300, fmax: 8000 })
+```
+
+**Use when**: MFCC feature extraction, speech recognition, music genre classification, audio fingerprinting<br>
+**Compared to ERB/Bark**: mel is the most widely used in ML; ERB is more physiologically accurate
+
+![Mel filter bank](plot/mel-bank.svg)
+
+
 ## Analog
 
 Discrete-time models of analog circuits — each named after the hardware it replicates. Nonlinear, stateful, process in-place. The filters in synthesizers.
@@ -356,6 +401,29 @@ korg35(buffer, { fc: 1000, resonance: 0.5, type: 'highpass', fs: 44100 })
 ![Korg35 LP and HP](plot/korg35.svg)
 
 
+### Oberheim
+
+Oberheim SEM (1974) — 2-pole state-variable filter with four modes from one circuit.
+
+**Topology**: 2 trapezoidal integrators with nonlinear feedback; multimode output (LP/HP/BP/notch)<br>
+**Response**: $-12\,\text{dB/oct}$; warm, musical resonance; continuous mode morphing<br>
+**Implementation**: ZDF — Zavalishin (2012)[^9], Ch. 4–5; $\tanh$ saturation on integrator states
+
+```js
+import { oberheim } from 'audio-filter/analog'
+
+oberheim(buffer, { fc: 1000, resonance: 0.5, type: 'lowpass',  fs: 44100 })
+oberheim(buffer, { fc: 1000, resonance: 0.5, type: 'highpass', fs: 44100 })
+oberheim(buffer, { fc: 1000, resonance: 0.5, type: 'bandpass', fs: 44100 })
+oberheim(buffer, { fc: 1000, resonance: 0.5, type: 'notch',    fs: 44100 })
+```
+
+**Circuit**: Oberheim SEM (1974), Two Voice, Four Voice, Eight Voice<br>
+**vs Moog/Korg**: 2-pole like Korg35 but true state-variable topology; LP/HP/BP/notch from one circuit; warmer resonance character
+
+![Oberheim SEM](plot/oberheim.svg)
+
+
 ## Speech
 
 Filters that model or process the human vocal tract — from vowel synthesis to spectral voice coding.
@@ -408,6 +476,34 @@ let output = vocoder(carrier, modulator, { bands: 16, fs: 44100 })
 
 **Inventor**: Dudley (1939)[^13], Bell Labs<br>
 **Use when**: voice effects, talkbox simulation, cross-synthesis, spectral morphing
+
+
+### LPC
+
+Linear Predictive Coding — estimates the vocal tract transfer function from a speech signal.
+
+**Analysis**: autocorrelation method + Levinson-Durbin recursion → LPC coefficients + residual<br>
+**Synthesis**: all-pole filter reconstructs signal from residual excitation<br>
+**Round-trip**: `lpcAnalysis` → `lpcSynthesize` recovers the original signal exactly
+
+```js
+import { lpcAnalysis, lpcSynthesize } from 'audio-filter/speech'
+
+// Analysis: extract vocal tract model
+let { coefs, gain, residual } = lpcAnalysis(speechFrame, { order: 12 })
+
+// Synthesis: reconstruct from residual
+lpcSynthesize(residual, { coefs, gain })   // residual → reconstructed speech
+
+// Modify pitch: replace residual with different excitation
+let buzz = generatePulseTrainAtNewPitch()
+lpcSynthesize(buzz, { coefs, gain })       // speech at new pitch
+```
+
+**Origin**: Atal & Hanauer (1971)[^19]; foundation of CELP, GSM, and modern speech codecs<br>
+**Use when**: speech coding, pitch modification, voice conversion, formant estimation, speech analysis
+
+![LPC analysis/synthesis](plot/lpc.svg)
 
 
 ## EQ
@@ -734,6 +830,83 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 ![Variable bandwidth](plot/variable-bandwidth.svg)
 
 
+### Phaser
+
+Cascade of swept allpass filters — creates moving notches and peaks across the spectrum.
+
+**Implementation**: N first-order allpass stages with LFO-modulated coefficients; feedback from output to input<br>
+**Effect**: notch frequencies sweep together as LFO moves; even stages = peaks align with notches for deep effect<br>
+**Character**: 4 stages = subtle; 6–8 = classic; 12 = extreme; feedback adds resonant peaks at notches
+
+```js
+import { phaser } from 'audio-filter/effect'
+
+phaser(buffer, { rate: 0.5, depth: 0.7, stages: 4, feedback: 0.5, fc: 1000, fs: 44100 })
+```
+
+**Use when**: guitar effects, synth pads, psychedelic textures, stereo animation
+
+![Phaser](plot/phaser.svg)
+
+
+### Flanger
+
+Modulated short delay with feedback — metallic, jet-engine-like sweeping.
+
+**Implementation**: delay line (1–10 ms) with LFO-modulated delay time; linear interpolation for fractional samples<br>
+**Effect**: comb filter with moving notches/peaks; feedback intensifies the comb effect<br>
+**vs Chorus**: shorter delay (1–10 ms vs 20–50 ms), feedback creates resonant comb pattern
+
+```js
+import { flanger } from 'audio-filter/effect'
+
+flanger(buffer, { rate: 0.3, depth: 0.7, delay: 3, feedback: 0.5, fs: 44100 })
+```
+
+**Use when**: guitar/synth effects, jet sweep sounds, metallic textures
+
+![Flanger](plot/flanger.svg)
+
+
+### Chorus
+
+Multiple detuned delay lines — ensemble thickening and stereo width.
+
+**Implementation**: N voices with phase-spread LFOs modulating separate delay taps; averaged and mixed with dry signal<br>
+**Effect**: each voice is slightly detuned from the original, creating a rich ensemble sound<br>
+**Voices**: 2 = subtle doubling; 3 = classic chorus; 5+ = thick ensemble/string effect
+
+```js
+import { chorus } from 'audio-filter/effect'
+
+chorus(buffer, { rate: 1.5, depth: 0.5, delay: 20, voices: 3, fs: 44100 })
+```
+
+**Use when**: thickening vocals/guitars, string ensemble effect, stereo widening, detuned pads
+
+![Chorus](plot/chorus.svg)
+
+
+### Wah
+
+Swept resonant bandpass — the classic guitar pedal effect.
+
+**Implementation**: state-variable filter bandpass with LFO or manual frequency control; logarithmic sweep range<br>
+**Sweep range**: $f_c \cdot 2^{-\text{depth}}$ to $f_c \cdot 2^{+\text{depth}}$ — centered on `fc`<br>
+**Modes**: `auto` = LFO-driven sweep; `manual` = fixed frequency (for envelope-controlled wah, set `fc` per block)
+
+```js
+import { wah } from 'audio-filter/effect'
+
+wah(buffer, { rate: 1.5, depth: 0.8, fc: 1000, Q: 5, fs: 44100 })           // auto-wah
+wah(buffer, { mode: 'manual', fc: envelopeValue * 3000, Q: 5, fs: 44100 })   // envelope-controlled
+```
+
+**Use when**: guitar wah pedal, auto-wah, funky bass, filter sweeps
+
+![Wah](plot/wah.svg)
+
+
 ## Filter selection guide
 
 | I need to... | Use |
@@ -744,11 +917,14 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 | Model the cochlea / auditory system | `gammatone`, `erbBank` |
 | Analyze a spectrum in octave bands | `octaveBank` |
 | Psychoacoustic analysis / masking model | `barkBank` |
+| MFCC / speech recognition features | `melBank` |
 | Synth filter — warmth and resonance | `moogLadder` |
 | Synth filter — acid / squelch | `diodeLadder` |
 | Synth filter — 2-pole LP + HP | `korg35` |
+| Synth filter — multimode SVF | `oberheim` |
 | Synthesize vowel sounds | `formant` |
 | Transfer one sound's spectral shape to another | `vocoder` |
+| Analyze/resynthesize speech, change pitch | `lpcAnalysis` / `lpcSynthesize` |
 | Studio EQ at fixed ISO frequencies | `graphicEq` |
 | Studio EQ with full per-band control | `parametricEq` |
 | Split audio for multi-way speakers | `crossover` |
@@ -763,6 +939,10 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 | Dither for bit-depth reduction | `noiseShaping` |
 | Generate pink / brown noise | `pinkNoise` + `spectralTilt` |
 | Tilt spectrum for tone shaping | `spectralTilt` |
+| Sweeping notch/peak effect | `phaser` |
+| Metallic jet-sweep effect | `flanger` |
+| Ensemble thickening | `chorus` |
+| Swept bandpass pedal effect | `wah` |
 
 
 ## FAQ
@@ -920,3 +1100,7 @@ moogLadder(buffer, { fc: 1000, fs: 48000 })
 [^16]: Zölzer, U. (2011). *DAFX: Digital Audio Effects*, 2nd ed. Wiley.
 
 [^17]: Lipshitz, S.P., Wannamaker, R.A. & Vanderkooy, J. (1992). "Quantization and Dither: A Theoretical Survey." *JAES* 40(5), pp. 355–375.
+
+[^18]: O'Shaughnessy, D. (2000). *Speech Communications: Human and Machine*, 2nd ed. IEEE Press.
+
+[^19]: Atal, B.S. & Hanauer, S.L. (1971). "Speech Analysis and Synthesis by Linear Prediction of the Speech Wave." *JASA* 50(2B), pp. 637–655.

@@ -59,6 +59,15 @@ export function erbBank(fs?: number, opts?: BankOpts): ErbBand[]
 /** Bark-scale critical-band filter bank */
 export function barkBank(fs?: number, opts?: BankOpts): BarkBand[]
 
+export interface MelBankOpts extends BankOpts {
+  nFilters?: number   // number of mel filters (default 26)
+}
+
+export interface MelBand { fc: number; fLow: number; fHigh: number; mel: number }
+
+/** Mel-frequency triangular filter bank */
+export function melBank(fs?: number, opts?: MelBankOpts): MelBand[]
+
 // ---------------------------------------------------------------------------
 // Analog — virtual analog circuit models (in-place, state in params)
 // ---------------------------------------------------------------------------
@@ -83,6 +92,17 @@ export interface Korg35Params extends LadderParams {
 
 /** Korg35 2-pole filter (MS-20 style) — ZDF, –12 dB/oct */
 export function korg35(data: Buf, params: Korg35Params): Buf
+
+export interface OberheimParams {
+  fc?: number        // cutoff frequency Hz (default 1000)
+  resonance?: number // 0–1 (default 0)
+  type?: 'lowpass' | 'highpass' | 'bandpass' | 'notch'
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+
+/** Oberheim SEM 2-pole state-variable filter — ZDF, –12 dB/oct, multimode */
+export function oberheim(data: Buf, params: OberheimParams): Buf
 
 // ---------------------------------------------------------------------------
 // Speech — vocal tract models
@@ -109,6 +129,30 @@ export interface VocoderParams {
 
 /** Channel vocoder — applies modulator spectral envelope to carrier */
 export function vocoder(carrier: Buf, modulator: Buf, params: VocoderParams): Buf
+
+export interface LpcParams {
+  order?: number     // LPC order (default 12)
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+
+export interface LpcResult {
+  coefs: Float64Array  // LPC coefficients a[1..order]
+  gain: number         // prediction error gain
+  residual: Float64Array // prediction residual
+}
+
+/** LPC analysis — autocorrelation + Levinson-Durbin */
+export function lpcAnalysis(data: Buf, params?: LpcParams): LpcResult
+
+export interface LpcSynthParams {
+  coefs: Float64Array | number[]
+  gain: number
+  [key: string]: unknown
+}
+
+/** LPC synthesis — all-pole filter reconstruction from residual */
+export function lpcSynthesize(residual: Buf, params: LpcSynthParams): Buf
 
 // ---------------------------------------------------------------------------
 // EQ — equalization
@@ -209,3 +253,49 @@ export interface VariableBandwidthParams {
 }
 /** Variable-bandwidth biquad filter (recalculates coefficients each block) */
 export function variableBandwidth(data: Buf, params?: VariableBandwidthParams): Buf
+
+export interface PhaserParams {
+  rate?: number      // LFO Hz (default 0.5)
+  depth?: number     // 0–1 (default 0.7)
+  stages?: number    // number of allpass stages (default 4, even)
+  feedback?: number  // 0–1 (default 0.5)
+  fc?: number        // center frequency Hz (default 1000)
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+/** Phaser — cascaded swept allpass filters */
+export function phaser(data: Buf, params?: PhaserParams): Buf
+
+export interface FlangerParams {
+  rate?: number      // LFO Hz (default 0.3)
+  depth?: number     // 0–1 (default 0.7)
+  delay?: number     // base delay ms (default 3)
+  feedback?: number  // -1 to 1 (default 0.5)
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+/** Flanger — modulated short delay with feedback */
+export function flanger(data: Buf, params?: FlangerParams): Buf
+
+export interface ChorusParams {
+  rate?: number      // LFO Hz (default 1.5)
+  depth?: number     // 0–1 (default 0.5)
+  delay?: number     // base delay ms (default 20)
+  voices?: number    // number of voices (default 3)
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+/** Chorus — multi-voice detuned delay lines */
+export function chorus(data: Buf, params?: ChorusParams): Buf
+
+export interface WahParams {
+  rate?: number      // LFO Hz (default 1.5)
+  depth?: number     // 0–1 (default 0.8)
+  fc?: number        // center frequency Hz (default 1000)
+  Q?: number         // resonance (default 5)
+  fs?: number        // sample rate (default 44100)
+  mode?: 'auto' | 'manual'
+  [key: string]: unknown
+}
+/** Wah-wah — swept resonant bandpass filter */
+export function wah(data: Buf, params?: WahParams): Buf
