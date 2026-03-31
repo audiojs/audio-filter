@@ -209,22 +209,6 @@ test('resonator — rings on impulse', () => {
 	ok(hasPositive && hasNegative, 'resonator oscillates')
 })
 
-test('envelope — follows amplitude', () => {
-	let data = new Float64Array(256)
-	for (let i = 0; i < 128; i++) data[i] = Math.sin(2 * Math.PI * 1000 * i / 44100)
-	audio.envelope(data, {attack: 0.001, release: 0.01, fs: 44100})
-	ok(data[127] > 0.5, 'envelope rises during signal')
-	ok(data[255] < data[127], 'envelope falls after signal ends')
-})
-
-test('slewLimiter — limits rate of change', () => {
-	let data = new Float64Array([0, 0, 0, 1, 1, 1, 0, 0])
-	audio.slewLimiter(data, {rise: 22050, fall: 22050, fs: 44100})
-	// Max change = 0.5 per sample (22050/44100)
-	ok(data[3] <= 0.5 + LOOSE, 'rise limited')
-	ok(data[3] > 0, 'still rises')
-})
-
 test('pinkNoise — produces output', () => {
 	let data = new Float64Array(256)
 	for (let i = 0; i < 256; i++) data[i] = Math.random() * 2 - 1
@@ -413,23 +397,6 @@ test('erbBank — spacing increases monotonically', () => {
 test('barkBank — 24 critical bands', () => {
 	let bands = audio.barkBank(44100)
 	is(bands.length, 24, '24 Bark bands at 44100Hz')
-})
-
-test('noiseShaping — quantizes to target bit depth', () => {
-	let data = new Float64Array(256)
-	for (let i = 0; i < 256; i++) data[i] = Math.sin(2 * Math.PI * 100 * i / 44100) * 0.5
-	let orig = Float64Array.from(data)
-	audio.noiseShaping(data, {bits: 8})
-	let scale = Math.pow(2, 7) // 2^(bits-1)
-	let allQuantized = true
-	for (let i = 0; i < 256; i++) {
-		let rounded = Math.round(data[i] * scale) / scale
-		if (Math.abs(data[i] - rounded) > 1e-12) { allQuantized = false; break }
-	}
-	ok(allQuantized, 'all samples quantized to 8-bit grid')
-	// Should differ from original continuous values
-	let hasDiff = data.some((x, i) => Math.abs(x - orig[i]) > 1e-10)
-	ok(hasDiff, 'quantization changes values')
 })
 
 test('itu468 — peaked response near 6.3kHz', () => {
@@ -691,13 +658,6 @@ test('korg35 — extreme params: fc=1, res=0.99, fs=192k', () => {
 	ok(data.every(isFinite), 'no NaN/Inf')
 })
 
-test('slewLimiter — fall direction limited', () => {
-	let data = new Float64Array([1, 1, 1, 0, 0, 0, 0, 0])
-	audio.slewLimiter(data, { rise: 22050, fall: 22050, fs: 44100 })
-	ok(data[3] >= 0.5 - LOOSE, `fall limited: ${data[3].toFixed(4)} >= 0.5`)
-	ok(data[3] < 1, 'still falls')
-})
-
 test('comb — feedforward with delay=1', () => {
 	let data = impulse(8)
 	audio.comb(data, { delay: 1, gain: 0.5, type: 'feedforward' })
@@ -864,49 +824,114 @@ test('lpcAnalysis + lpcSynthesize — round-trip reconstructs signal', () => {
 	ok(maxErr < 0.01, `LPC round-trip error: ${maxErr.toFixed(6)}`)
 })
 
-test('phaser — produces output, modifies signal', () => {
-	let data = impulse(4096)
-	audio.phaser(data, { rate: 1, depth: 0.7, stages: 4, fs: 44100 })
-	ok(data.some(x => Math.abs(x) > 0.001), 'phaser output present')
+// ═══════════════════════════════════════════════════════════════════════════
+// Notch, Shelving, Baxandall, Tilt
+// ═══════════════════════════════════════════════════════════════════════════
+
+test('notch — rejects target frequency', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.notch(data, { fc: 1000, Q: 30, fs })
+	let mag1k = dftMag(data, 1000, fs)
+	let mag500 = dftMag(data, 500, fs)
+	ok(mag500 > mag1k * 10, `notch at 1kHz: 500Hz (${mag500.toFixed(3)}) >> 1kHz (${mag1k.toFixed(3)})`)
 })
 
-test('phaser — stable over long buffer', () => {
-	let data = new Float64Array(44100)
-	for (let i = 0; i < 44100; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / 44100)
-	audio.phaser(data, { rate: 0.5, depth: 0.7, stages: 6, feedback: 0.8, fs: 44100 })
-	ok(data.every(isFinite), 'no NaN/Inf over 1s')
+test('notch — unity gain away from fc', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.notch(data, { fc: 1000, Q: 30, fs })
+	let magDC = dftMag(data, 50, fs)
+	ok(Math.abs(magDC - 1) < 0.1, `notch DC gain ≈ 1 (got ${magDC.toFixed(4)})`)
 })
 
-test('flanger — produces modulated output', () => {
-	let data = new Float64Array(4096)
-	for (let i = 0; i < 4096; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / 44100)
+test('notch — narrow Q=50 vs wide Q=5', () => {
+	let fs = 44100, N = 4096
+	let narrow = impulse(N), wide = impulse(N)
+	audio.notch(narrow, { fc: 1000, Q: 50, fs })
+	audio.notch(wide, { fc: 1000, Q: 5, fs })
+	let narrowAt900 = dftMag(narrow, 900, fs)
+	let wideAt900 = dftMag(wide, 900, fs)
+	ok(narrowAt900 > wideAt900, `Q=50 passes 900Hz better (${narrowAt900.toFixed(3)}) than Q=5 (${wideAt900.toFixed(3)})`)
+})
+
+test('lowShelf — boosts bass', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.lowShelf(data, { fc: 300, gain: 6, fs })
+	let mag100 = dftMag(data, 100, fs)
+	let mag5k = dftMag(data, 5000, fs)
+	ok(mag100 > mag5k * 1.5, `lowShelf +6dB: 100Hz (${mag100.toFixed(3)}) > 5kHz (${mag5k.toFixed(3)})`)
+})
+
+test('highShelf — boosts treble', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.highShelf(data, { fc: 4000, gain: 6, fs })
+	let mag10k = dftMag(data, 10000, fs)
+	let mag200 = dftMag(data, 200, fs)
+	ok(mag10k > mag200 * 1.5, `highShelf +6dB: 10kHz (${mag10k.toFixed(3)}) > 200Hz (${mag200.toFixed(3)})`)
+})
+
+test('lowShelf — gain=0 is passthrough', () => {
+	let data = impulse(256)
 	let orig = Float64Array.from(data)
-	audio.flanger(data, { rate: 0.3, depth: 0.7, delay: 3, feedback: 0.5, fs: 44100 })
-	let hasDiff = data.some((x, i) => Math.abs(x - orig[i]) > 0.01)
-	ok(hasDiff, 'flanger modifies signal')
-	ok(data.every(isFinite), 'no NaN/Inf')
+	audio.lowShelf(data, { fc: 300, gain: 0, fs: 44100 })
+	let maxErr = 0
+	for (let i = 0; i < data.length; i++) { let err = Math.abs(data[i] - orig[i]); if (err > maxErr) maxErr = err }
+	ok(maxErr < EPSILON, `lowShelf gain=0 passthrough: err=${maxErr}`)
 })
 
-test('chorus — produces output, thickens signal', () => {
-	let data = new Float64Array(4096)
-	for (let i = 0; i < 4096; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / 44100)
-	audio.chorus(data, { rate: 1.5, depth: 0.5, delay: 20, voices: 3, fs: 44100 })
-	ok(data.some(x => Math.abs(x) > 0.01), 'chorus output present')
-	ok(data.every(isFinite), 'no NaN/Inf')
+test('baxandall — bass boost, treble flat', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.baxandall(data, { bass: 6, treble: 0, fs })
+	let mag100 = dftMag(data, 100, fs)
+	let mag10k = dftMag(data, 10000, fs)
+	ok(mag100 > mag10k * 1.3, `baxandall bass+6: 100Hz (${mag100.toFixed(3)}) > 10kHz (${mag10k.toFixed(3)})`)
 })
 
-test('wah — produces bandpass-like output', () => {
-	let data = impulse(4096)
-	audio.wah(data, { rate: 1.5, depth: 0.8, fc: 1000, Q: 5, fs: 44100 })
-	ok(data.some(x => Math.abs(x) > 0.001), 'wah output present')
-	ok(data.every(isFinite), 'no NaN/Inf')
+test('baxandall — treble boost, bass flat', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.baxandall(data, { bass: 0, treble: 6, fs })
+	let mag10k = dftMag(data, 10000, fs)
+	let mag100 = dftMag(data, 100, fs)
+	ok(mag10k > mag100 * 1.3, `baxandall treble+6: 10kHz (${mag10k.toFixed(3)}) > 100Hz (${mag100.toFixed(3)})`)
 })
 
-test('wah — manual mode at fixed frequency', () => {
-	let data = impulse(1024)
-	audio.wah(data, { mode: 'manual', fc: 1000, Q: 5, fs: 44100 })
-	// Should behave like a bandpass at 1kHz
-	let mag1k = dftMag(data, 1000, 44100)
-	let mag100 = dftMag(data, 100, 44100)
-	ok(mag1k > mag100, `wah manual: 1kHz (${mag1k.toFixed(3)}) > 100Hz (${mag100.toFixed(3)})`)
+test('baxandall — both=0 is passthrough', () => {
+	let data = impulse(256)
+	let orig = Float64Array.from(data)
+	audio.baxandall(data, { bass: 0, treble: 0, fs: 44100 })
+	let maxErr = 0
+	for (let i = 0; i < data.length; i++) { let err = Math.abs(data[i] - orig[i]); if (err > maxErr) maxErr = err }
+	ok(maxErr < EPSILON, `baxandall 0/0 passthrough: err=${maxErr}`)
+})
+
+test('tilt — positive tilts bass up, treble down', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.tilt(data, { gain: 6, pivot: 1000, fs })
+	let mag100 = dftMag(data, 100, fs)
+	let mag10k = dftMag(data, 10000, fs)
+	ok(mag100 > mag10k, `tilt +6: 100Hz (${mag100.toFixed(3)}) > 10kHz (${mag10k.toFixed(3)})`)
+})
+
+test('tilt — negative tilts treble up, bass down', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.tilt(data, { gain: -6, pivot: 1000, fs })
+	let mag10k = dftMag(data, 10000, fs)
+	let mag100 = dftMag(data, 100, fs)
+	ok(mag10k > mag100, `tilt -6: 10kHz (${mag10k.toFixed(3)}) > 100Hz (${mag100.toFixed(3)})`)
+})
+
+test('tilt — gain=0 is passthrough', () => {
+	let data = impulse(256)
+	let orig = Float64Array.from(data)
+	audio.tilt(data, { gain: 0, pivot: 1000, fs: 44100 })
+	let maxErr = 0
+	for (let i = 0; i < data.length; i++) { let err = Math.abs(data[i] - orig[i]); if (err > maxErr) maxErr = err }
+	ok(maxErr < EPSILON, `tilt gain=0 passthrough: err=${maxErr}`)
 })

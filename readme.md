@@ -19,10 +19,10 @@ Canonical audio filter implementations.<br>
 <sub>[Formant](#formant) · [Vocoder](#vocoder) · [LPC](#lpc)</sub>
 
 **[EQ](#eq)**<br>
-<sub>[Graphic EQ](#graphic-eq) · [Parametric EQ](#parametric-eq) · [Crossover](#crossover) · [Crossfeed](#crossfeed)</sub>
+<sub>[Graphic EQ](#graphic-eq) · [Parametric EQ](#parametric-eq) · [Crossover](#crossover) · [Crossfeed](#crossfeed) · [Shelving](#shelving) · [Baxandall](#baxandall) · [Tilt EQ](#tilt-eq)</sub>
 
 **[Effect](#effect)**<br>
-<sub>[DC blocker](#dc-blocker) · [Comb](#comb-filter) · [Allpass](#allpass) · [Pre-emphasis](#pre-emphasis--de-emphasis) · [Resonator](#resonator) · [Envelope](#envelope-follower) · [Slew limiter](#slew-limiter) · [Noise shaping](#noise-shaping) · [Pink noise](#pink-noise) · [Spectral tilt](#spectral-tilt) · [Variable bandwidth](#variable-bandwidth) · [Phaser](#phaser) · [Flanger](#flanger) · [Chorus](#chorus) · [Wah](#wah)</sub>
+<sub>[DC blocker](#dc-blocker) · [Comb](#comb-filter) · [Allpass](#allpass) · [Pre-emphasis](#pre-emphasis--de-emphasis) · [Notch](#notch) · [Resonator](#resonator) · [Pink noise](#pink-noise) · [Spectral tilt](#spectral-tilt) · [Variable bandwidth](#variable-bandwidth)</sub>
 
 </td></tr></table>
 
@@ -41,8 +41,8 @@ import { aWeighting, kWeighting } from 'audio-filter/weighting'
 import { gammatone, melBank } from 'audio-filter/auditory'
 import { moogLadder, oberheim } from 'audio-filter/analog'
 import { vocoder, lpcAnalysis } from 'audio-filter/speech'
-import { parametricEq, crossover } from 'audio-filter/eq'
-import { phaser, chorus, wah } from 'audio-filter/effect'
+import { parametricEq, crossover, baxandall, tilt } from 'audio-filter/eq'
+import { dcBlocker, notch, resonator } from 'audio-filter/effect'
 ```
 
 
@@ -607,9 +607,67 @@ crossfeed(left, right, { fc: 700, level: 0.3, fs: 44100 })
 ![Crossfeed](plot/crossfeed.svg)
 
 
+### Shelving
+
+Standalone low-shelf and high-shelf filters — boost or cut below/above a corner frequency.
+
+**Low shelf**: $H(s) = A \cdot \frac{s/\omega_c + \sqrt{A}}{s/(\omega_c\sqrt{A}) + 1}$ — RBJ biquad shelf design<br>
+**High shelf**: same topology, mirrored in frequency<br>
+**Q / slope**: $Q = 0.707$ gives maximally-flat transition; lower Q gives a gentler, wider slope
+
+```js
+import { lowShelf, highShelf } from 'audio-filter/eq'
+
+lowShelf(buffer,  { fc: 200,  gain: +6, Q: 0.707, fs: 44100 })   // bass boost
+highShelf(buffer, { fc: 4000, gain: -3, Q: 0.707, fs: 44100 })   // treble cut
+```
+
+**Use when**: correcting speaker/room low-end buildup, air-band top-end addition, mastering bus<br>
+**vs Parametric EQ**: shelf is a single-band operation with a cleaner API — use when you don't need bell curves
+
+
+### Baxandall
+
+Bass/treble tone control — the canonical two-knob EQ in amplifiers, mixers, and guitar pedals since 1952.
+
+**Bass**: low shelf around `fBass` (default 250 Hz)<br>
+**Treble**: high shelf around `fTreble` (default 4 kHz)<br>
+**Independence**: bass and treble controls are cascaded, not interactive — each shelf is independent
+
+```js
+import { baxandall } from 'audio-filter/eq'
+
+baxandall(buffer, { bass: +6, treble: -3, fs: 44100 })                           // default pivot freqs
+baxandall(buffer, { bass: +4, treble: +2, fBass: 300, fTreble: 6000, fs: 44100 }) // custom pivots
+```
+
+**Origin**: Peter Baxandall (1952)[^20]<br>
+**Use when**: amp/mixer tone stack simulation, consumer audio tone controls, guitar pedal EQ<br>
+**vs Parametric EQ**: intentionally limited to two knobs — the constraint is the point
+
+
+### Tilt EQ
+
+See-saw around a pivot frequency — one knob trades bass for treble symmetrically.
+
+**Positive gain**: bass up / treble down — warms up a bright signal<br>
+**Negative gain**: treble up / bass down — brightens a dull signal<br>
+**Pivot**: frequency that stays at 0 dB (default 1 kHz)
+
+```js
+import { tilt } from 'audio-filter/eq'
+
+tilt(buffer, { gain: +4, pivot: 1000, fs: 44100 })   // warm up
+tilt(buffer, { gain: -3, pivot: 1000, fs: 44100 })   // brighten
+```
+
+**Use when**: quick tonal correction on a mix bus or stereo source with a single parameter<br>
+**vs Baxandall**: tilt is one knob not two — bass and treble always move equal and opposite
+
+
 ## Effect
 
-Signal processing utilities — conditioning, shaping, and analyzing audio signals.
+Signal conditioning and spectral shaping — single-purpose filters with well-defined transfer functions.
 
 
 ### DC blocker
@@ -712,62 +770,24 @@ resonator(buffer, { fc: 440, bw: 20, fs: 44100 })
 ![Resonator](plot/resonator.svg)
 
 
-### Envelope follower
+### Notch
 
-Tracks the instantaneous amplitude of a signal with configurable attack and release.
+Band-reject filter — unity gain everywhere except a deep null at `fc`.
 
-**Attack**: $y[n] = \alpha_A \cdot y[n{-}1] + (1-\alpha_A)|x[n]|$ when $|x[n]| > y[n{-}1]$<br>
-**Release**: $y[n] = \alpha_R \cdot y[n{-}1]$ when $|x[n]| \leq y[n{-}1]$<br>
-**Time constants**: $\alpha = e^{-1/(\tau f_s)}$ — converts seconds to pole radius
+$H(z) = \dfrac{1 - 2\cos(\omega_0)z^{-1} + z^{-2}}{1 - 2\cos(\omega_0)z^{-1}(1-\alpha) + (1-2\alpha)z^{-2}}$
 
-```js
-import { envelope } from 'audio-filter/effect'
-
-let params = { attack: 0.001, release: 0.05, fs: 44100 }
-envelope(buffer, params)   // buffer replaced with envelope signal (0–1)
-```
-
-**Use when**: compressor/limiter sidechain, auto-wah, ducking, VCA control, gain riding
-
-![Envelope follower](plot/envelope.svg)
-
-
-### Slew limiter
-
-Limits the rate of change — limits rise and fall rates separately.
-
-**Operation**: clips the per-sample derivative — $\Delta y \leq \text{rise}/f_s$ and $\Delta y \geq -\text{fall}/f_s$<br>
-**Nonlinear**: not a linear filter — frequency response depends on signal amplitude
+**Q**: controls notch width — $Q = 30$ is narrow (hum removal); $Q = 5$ is wider (resonance suppression)<br>
+**Zeros**: on the unit circle at $\pm\omega_0$ — exact null, independent of Q
 
 ```js
-import { slewLimiter } from 'audio-filter/effect'
+import { notch } from 'audio-filter/effect'
 
-slewLimiter(buffer, { rise: 500, fall: 200, fs: 44100 })
+notch(buffer, { fc: 50,   Q: 30, fs: 44100 })   // remove 50 Hz mains hum
+notch(buffer, { fc: 1000, Q: 10, fs: 44100 })   // suppress a resonance
 ```
 
-**Use when**: smoothing control signals and automation, click prevention, portamento/glide, analog CV emulation
-
-![Slew limiter](plot/slew-limiter.svg)
-
-
-### Noise shaping
-
-Error-feedback dithering — quantizes to N bits while shaping quantization noise into high frequencies.
-
-**Principle**: $y[n] = Q(x[n] + e_\text{shaped}[n])$ — quantization error fed back through shaping filter<br>
-**Default filter**: first-order highpass $H(z) = 1 - z^{-1}$ — pushes noise toward Nyquist<br>
-**Gain**: noise shaping trades total noise power for spectral placement; audible band gets quieter
-
-```js
-import { noiseShaping } from 'audio-filter/effect'
-
-noiseShaping(buffer, { bits: 16 })   // dither to 16-bit, noise shaped above 10 kHz
-```
-
-**Use when**: dithering before bit-depth reduction, CD mastering, 16-bit export from 32-bit float<br>
-**Reference**: Lipshitz, Wannamaker & Vanderkooy (1992)[^17]
-
-![Noise shaping](plot/noise-shaping.svg)
+**Use when**: mains hum removal (50/60 Hz), feedback cancellation, room mode suppression<br>
+**vs Parametric EQ with negative gain**: notch reaches −∞ dB exactly at fc; peaking EQ has finite attenuation
 
 
 ### Pink noise
@@ -829,83 +849,6 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 ![Variable bandwidth](plot/variable-bandwidth.svg)
 
 
-### Phaser
-
-Cascade of swept allpass filters — creates moving notches and peaks across the spectrum.
-
-**Implementation**: N first-order allpass stages with LFO-modulated coefficients; feedback from output to input<br>
-**Effect**: notch frequencies sweep together as LFO moves; even stages = peaks align with notches for deep effect<br>
-**Character**: 4 stages = subtle; 6–8 = classic; 12 = extreme; feedback adds resonant peaks at notches
-
-```js
-import { phaser } from 'audio-filter/effect'
-
-phaser(buffer, { rate: 0.5, depth: 0.7, stages: 4, feedback: 0.5, fc: 1000, fs: 44100 })
-```
-
-**Use when**: guitar effects, synth pads, psychedelic textures, stereo animation
-
-![Phaser](plot/phaser.svg)
-
-
-### Flanger
-
-Modulated short delay with feedback — metallic, jet-engine-like sweeping.
-
-**Implementation**: delay line (1–10 ms) with LFO-modulated delay time; linear interpolation for fractional samples<br>
-**Effect**: comb filter with moving notches/peaks; feedback intensifies the comb effect<br>
-**vs Chorus**: shorter delay (1–10 ms vs 20–50 ms), feedback creates resonant comb pattern
-
-```js
-import { flanger } from 'audio-filter/effect'
-
-flanger(buffer, { rate: 0.3, depth: 0.7, delay: 3, feedback: 0.5, fs: 44100 })
-```
-
-**Use when**: guitar/synth effects, jet sweep sounds, metallic textures
-
-![Flanger](plot/flanger.svg)
-
-
-### Chorus
-
-Multiple detuned delay lines — ensemble thickening and stereo width.
-
-**Implementation**: N voices with phase-spread LFOs modulating separate delay taps; averaged and mixed with dry signal<br>
-**Effect**: each voice is slightly detuned from the original, creating a rich ensemble sound<br>
-**Voices**: 2 = subtle doubling; 3 = classic chorus; 5+ = thick ensemble/string effect
-
-```js
-import { chorus } from 'audio-filter/effect'
-
-chorus(buffer, { rate: 1.5, depth: 0.5, delay: 20, voices: 3, fs: 44100 })
-```
-
-**Use when**: thickening vocals/guitars, string ensemble effect, stereo widening, detuned pads
-
-![Chorus](plot/chorus.svg)
-
-
-### Wah
-
-Swept resonant bandpass — the classic guitar pedal effect.
-
-**Implementation**: state-variable filter bandpass with LFO or manual frequency control; logarithmic sweep range<br>
-**Sweep range**: $f_c \cdot 2^{-\text{depth}}$ to $f_c \cdot 2^{+\text{depth}}$ — centered on `fc`<br>
-**Modes**: `auto` = LFO-driven sweep; `manual` = fixed frequency (for envelope-controlled wah, set `fc` per block)
-
-```js
-import { wah } from 'audio-filter/effect'
-
-wah(buffer, { rate: 1.5, depth: 0.8, fc: 1000, Q: 5, fs: 44100 })           // auto-wah
-wah(buffer, { mode: 'manual', fc: envelopeValue * 3000, Q: 5, fs: 44100 })   // envelope-controlled
-```
-
-**Use when**: guitar wah pedal, auto-wah, funky bass, filter sweeps
-
-![Wah](plot/wah.svg)
-
-
 ## Filter selection guide
 
 | I need to... | Use |
@@ -928,25 +871,23 @@ wah(buffer, { mode: 'manual', fc: envelopeValue * 3000, Q: 5, fs: 44100 })   // 
 | Studio EQ with full per-band control | `parametricEq` |
 | Split audio for multi-way speakers | `crossover` |
 | Improve headphone stereo imaging | `crossfeed` |
+| Bass/treble tone control | `baxandall` |
+| One-knob tonal tilt | `tilt` |
+| Standalone bass or treble shelf | `lowShelf` / `highShelf` |
 | Remove DC offset | `dcBlocker` |
-| Create flanging / resonant combing | `comb` |
+| Remove mains hum / suppress resonance | `notch` |
+| Create resonant combing | `comb` |
 | Phase-shift without changing magnitude | `allpass.first`, `allpass.second` |
 | Pre-process for audio coding | `emphasis` / `deemphasis` |
 | Modal synthesis (bells, drums, rooms) | `resonator` |
-| Track signal amplitude | `envelope` |
-| Smooth a control signal | `slewLimiter` |
-| Dither for bit-depth reduction | `noiseShaping` |
 | Generate pink / brown noise | `pinkNoise` + `spectralTilt` |
-| Tilt spectrum for tone shaping | `spectralTilt` |
-| Sweeping notch/peak effect | `phaser` |
-| Metallic jet-sweep effect | `flanger` |
-| Ensemble thickening | `chorus` |
-| Swept bandpass pedal effect | `wah` |
+| Tilt spectrum for noise synthesis | `spectralTilt` |
+| Smooth automated filter sweeps | `variableBandwidth` |
 
 
 ## FAQ
 
-**Why does my filter click when I change `fc` or `resonance`?**
+**Why does my filter click when I change `fc` or `Q`?**
 Biquad coefficients change discontinuously between samples. Use `variableBandwidth` for smooth automated sweeps, or crossfade.
 
 **Why does my Moog/Diode filter blow up?**
@@ -1004,6 +945,12 @@ let [lo, mid, hi] = bands.map(coefs => {
 // process independently, then sum
 ```
 
+**Notch out mains hum**
+```js
+let p = { fc: 50, Q: 30, fs: 44100 }
+for (let buf of stream) notch(buf, p)   // removes 50 Hz hum, flat elsewhere
+```
+
 **Automate cutoff without clicks**
 ```js
 let p = { fc: 200, Q: 1.0, fs: 44100 }
@@ -1059,6 +1006,7 @@ moogLadder(buffer, { fc: 1000, fs: 48000 })
 
 ## See also
 
+- [audio-effect](https://github.com/audiojs/audio-effect) — audio effects: phaser, flanger, chorus, wah, compressor, reverb, delay, and more
 - [digital-filter](https://github.com/audiojs/digital-filter) — general-purpose filter design: Butterworth, Chebyshev, Bessel, Elliptic, FIR, and more
 - [audio-decode](https://github.com/audiojs/audio-decode) — decode audio files to PCM buffers
 - [audio-speaker](https://github.com/audiojs/audio-speaker) — output PCM audio to system speakers
@@ -1098,8 +1046,8 @@ moogLadder(buffer, { fc: 1000, fs: 48000 })
 
 [^16]: Zölzer, U. (2011). *DAFX: Digital Audio Effects*, 2nd ed. Wiley.
 
-[^17]: Lipshitz, S.P., Wannamaker, R.A. & Vanderkooy, J. (1992). "Quantization and Dither: A Theoretical Survey." *JAES* 40(5), pp. 355–375.
-
 [^18]: O'Shaughnessy, D. (2000). *Speech Communications: Human and Machine*, 2nd ed. IEEE Press.
 
 [^19]: Atal, B.S. & Hanauer, S.L. (1971). "Speech Analysis and Synthesis by Linear Prediction of the Speech Wave." *JASA* 50(2B), pp. 637–655.
+
+[^20]: Baxandall, P.J. (1952). "Transistor Tone-Control Design." *Wireless World* 58(10), pp. 402–405.
