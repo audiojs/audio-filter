@@ -7,7 +7,19 @@
 
 import { bandpass2 } from 'digital-filter/iir/biquad.js'
 import filter from 'digital-filter/core/filter.js'
-import envelope from '../effect/envelope.js'
+
+let {abs, exp} = Math
+function envelope (data, p) {
+	let aA = exp(-1 / ((p.attack || 0.005) * (p.fs || 44100)))
+	let aR = exp(-1 / ((p.release || 0.05) * (p.fs || 44100)))
+	let env = p.env || 0
+	for (let i = 0, l = data.length; i < l; i++) {
+		let x = abs(data[i])
+		env = x > env ? aA * env + (1 - aA) * x : aR * env + (1 - aR) * x
+		data[i] = env
+	}
+	p.env = env
+}
 
 /**
  * @param {Float64Array} carrier - Carrier signal (e.g., sawtooth)

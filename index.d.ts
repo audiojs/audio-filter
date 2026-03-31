@@ -225,18 +225,6 @@ export interface ResonatorParams { fc: number; bw?: number; fs?: number; [key: s
 /** Constant-peak-gain resonator — modal synthesis (bells, drums, formants) */
 export function resonator(data: Buf, params: ResonatorParams): Buf
 
-export interface EnvelopeParams { attack?: number; release?: number; fs?: number; [key: string]: unknown }
-/** Attack/release envelope follower */
-export function envelope(data: Buf, params?: EnvelopeParams): Buf
-
-export interface SlewParams { rise?: number; fall?: number; [key: string]: unknown }
-/** Rate-of-change limiter — clips derivative to prevent clicks */
-export function slewLimiter(data: Buf, params?: SlewParams): Buf
-
-export interface NoiseShapingParams { bits?: number; coefs?: number[]; [key: string]: unknown }
-/** Noise shaping for dithered quantization */
-export function noiseShaping(data: Buf, params?: NoiseShapingParams): Buf
-
 /** Voss-McCartney pink noise from white noise input */
 export function pinkNoise(data: Buf, params?: Record<string, unknown>): Buf
 
@@ -254,48 +242,3 @@ export interface VariableBandwidthParams {
 /** Variable-bandwidth biquad filter (recalculates coefficients each block) */
 export function variableBandwidth(data: Buf, params?: VariableBandwidthParams): Buf
 
-export interface PhaserParams {
-  rate?: number      // LFO Hz (default 0.5)
-  depth?: number     // 0–1 (default 0.7)
-  stages?: number    // number of allpass stages (default 4, even)
-  feedback?: number  // 0–1 (default 0.5)
-  fc?: number        // center frequency Hz (default 1000)
-  fs?: number        // sample rate (default 44100)
-  [key: string]: unknown
-}
-/** Phaser — cascaded swept allpass filters */
-export function phaser(data: Buf, params?: PhaserParams): Buf
-
-export interface FlangerParams {
-  rate?: number      // LFO Hz (default 0.3)
-  depth?: number     // 0–1 (default 0.7)
-  delay?: number     // base delay ms (default 3)
-  feedback?: number  // -1 to 1 (default 0.5)
-  fs?: number        // sample rate (default 44100)
-  [key: string]: unknown
-}
-/** Flanger — modulated short delay with feedback */
-export function flanger(data: Buf, params?: FlangerParams): Buf
-
-export interface ChorusParams {
-  rate?: number      // LFO Hz (default 1.5)
-  depth?: number     // 0–1 (default 0.5)
-  delay?: number     // base delay ms (default 20)
-  voices?: number    // number of voices (default 3)
-  fs?: number        // sample rate (default 44100)
-  [key: string]: unknown
-}
-/** Chorus — multi-voice detuned delay lines */
-export function chorus(data: Buf, params?: ChorusParams): Buf
-
-export interface WahParams {
-  rate?: number      // LFO Hz (default 1.5)
-  depth?: number     // 0–1 (default 0.8)
-  fc?: number        // center frequency Hz (default 1000)
-  Q?: number         // resonance (default 5)
-  fs?: number        // sample rate (default 44100)
-  mode?: 'auto' | 'manual'
-  [key: string]: unknown
-}
-/** Wah-wah — swept resonant bandpass filter */
-export function wah(data: Buf, params?: WahParams): Buf
