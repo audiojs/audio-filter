@@ -167,6 +167,9 @@ write('crossfeed', plotFir(
 	'Crossfeed (left channel), fc=700Hz, level=0.3'
 ))
 
+write('lowshelf', plotFir(impulse(af.lowShelf, {fc: 200, gain: 6, fs: FS}), 'Low shelf fc=200Hz, +6dB'))
+write('highshelf', plotFir(impulse(af.highShelf, {fc: 4000, gain: 6, fs: FS}), 'High shelf fc=4kHz, +6dB'))
+
 // ── Effect ──
 
 write('dc-blocker',        plotFir(impulse(af.dcBlocker,        {R: 0.995}),                              'DC blocker R=0.995'))
@@ -174,49 +177,19 @@ write('comb',              plotFir(impulse(af.comb,             {delay: 22, gain
 write('allpass',           plotFir(impulse(af.allpass.second,   {fc: 1000, Q: 1, fs: FS}),                'Allpass 2nd order fc=1kHz'))
 write('emphasis',          plotFir(impulse(af.emphasis,         {alpha: 0.97}),                           'Pre-emphasis α=0.97'))
 write('deemphasis',        plotFir(impulse(af.deemphasis,       {alpha: 0.97}),                           'De-emphasis α=0.97'))
+write('lowpass',           plotFir(impulse(af.lowpass,          {fc: 1000, fs: FS}),                      'Lowpass fc=1kHz'))
+write('highpass',          plotFir(impulse(af.highpass,         {fc: 1000, fs: FS}),                      'Highpass fc=1kHz'))
+write('bandpass',          plotFir(impulse(af.bandpass,         {fc: 1000, Q: 2, fs: FS}),                'Bandpass fc=1kHz, Q=2'))
+write('notch',             plotFir(impulse(af.notch,            {fc: 1000, Q: 10, fs: FS}),               'Notch fc=1kHz, Q=10'))
 write('resonator',         plotFir(impulse(af.resonator,        {fc: 1000, bw: 50, fs: FS}),              'Resonator fc=1kHz, bw=50Hz'))
 write('spectral-tilt',     plotFir(impulse(af.spectralTilt,     {slope: -3, fs: FS}),                     'Spectral tilt −3 dB/oct'))
 write('variable-bandwidth',plotFir(impulse(af.variableBandwidth,{fc: 1000, Q: 1, fs: FS}),                'Variable bandwidth lowpass fc=1kHz'))
-write('envelope',          plotFir(impulse(af.envelope,         {attack: 0.001, release: 0.05, fs: FS}, 4096, 2048), 'Envelope follower attack=1ms, release=50ms'))
-write('slew-limiter',      plotFir(impulse(af.slewLimiter,      {rise: 500, fall: 200, fs: FS}),          'Slew limiter rise=500, fall=200'))
-write('noise-shaping',     plotFir(impulse(af.noiseShaping,     {bits: 16}),                              'Noise shaping 16-bit'))
 
 {
 	let data = new Float64Array(2048)
 	for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
 	af.pinkNoise(data, {})
 	write('pink-noise', plotFir(data.slice(0, 512), 'Pink noise (from white noise input)'))
-}
-
-// ── Effect (new) ──
-
-{
-	let N = 4096
-	let data = new Float64Array(N)
-	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / FS) * 0.5
-	af.phaser(data, { rate: 1, depth: 0.7, stages: 4, feedback: 0.6, fc: 1000, fs: FS })
-	write('phaser', plotFir(data.slice(0, 512), 'Phaser (440Hz sine, rate=1Hz, 4 stages)'))
-}
-
-{
-	let N = 4096
-	let data = new Float64Array(N)
-	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / FS) * 0.5
-	af.flanger(data, { rate: 0.3, depth: 0.7, delay: 3, feedback: 0.5, fs: FS })
-	write('flanger', plotFir(data.slice(0, 512), 'Flanger (440Hz sine, delay=3ms)'))
-}
-
-{
-	let N = 4096
-	let data = new Float64Array(N)
-	for (let i = 0; i < N; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / FS) * 0.5
-	af.chorus(data, { rate: 1.5, depth: 0.5, delay: 20, voices: 3, fs: FS })
-	write('chorus', plotFir(data.slice(0, 512), 'Chorus (440Hz sine, 3 voices, delay=20ms)'))
-}
-
-{
-	let data = impulse(af.wah, { rate: 1.5, depth: 0.8, fc: 1000, Q: 5, fs: FS }, 4096, 512)
-	write('wah', plotFir(data, 'Wah-wah (impulse response, fc=1kHz, Q=5)'))
 }
 
 console.log('SVGs generated in plot/')

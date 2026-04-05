@@ -855,6 +855,80 @@ test('notch — narrow Q=50 vs wide Q=5', () => {
 	ok(narrowAt900 > wideAt900, `Q=50 passes 900Hz better (${narrowAt900.toFixed(3)}) than Q=5 (${wideAt900.toFixed(3)})`)
 })
 
+// ── Highpass / Lowpass / Bandpass ──────────────────────────────────────────
+
+test('lowpass — attenuates above cutoff', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.lowpass(data, { fc: 1000, fs })
+	let mag500 = dftMag(data, 500, fs)
+	let mag5k = dftMag(data, 5000, fs)
+	ok(mag500 > mag5k * 5, `lowpass 1kHz: 500Hz (${mag500.toFixed(3)}) >> 5kHz (${mag5k.toFixed(3)})`)
+})
+
+test('lowpass — passes DC', () => {
+	let data = dc(1024)
+	audio.lowpass(data, { fc: 1000, fs: 44100 })
+	ok(Math.abs(data[1023] - 1) < 0.05, `lowpass passes DC: last=${data[1023].toFixed(4)}`)
+})
+
+test('lowpass — order 4 steeper than order 2', () => {
+	let fs = 44100, N = 4096
+	let d2 = impulse(N), d4 = impulse(N)
+	audio.lowpass(d2, { fc: 1000, order: 2, fs })
+	audio.lowpass(d4, { fc: 1000, order: 4, fs })
+	let mag2 = dftMag(d2, 4000, fs)
+	let mag4 = dftMag(d4, 4000, fs)
+	ok(mag4 < mag2, `order 4 (${mag4.toFixed(4)}) attenuates more at 4kHz than order 2 (${mag2.toFixed(4)})`)
+})
+
+test('highpass — attenuates below cutoff', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.highpass(data, { fc: 1000, fs })
+	let mag5k = dftMag(data, 5000, fs)
+	let mag200 = dftMag(data, 200, fs)
+	ok(mag5k > mag200 * 5, `highpass 1kHz: 5kHz (${mag5k.toFixed(3)}) >> 200Hz (${mag200.toFixed(3)})`)
+})
+
+test('highpass — removes DC', () => {
+	let data = dc(2048)
+	audio.highpass(data, { fc: 200, fs: 44100 })
+	ok(Math.abs(data[2047]) < 0.05, `highpass blocks DC: last=${data[2047].toFixed(4)}`)
+})
+
+test('highpass — order 4 steeper than order 2', () => {
+	let fs = 44100, N = 4096
+	let d2 = impulse(N), d4 = impulse(N)
+	audio.highpass(d2, { fc: 1000, order: 2, fs })
+	audio.highpass(d4, { fc: 1000, order: 4, fs })
+	let mag2 = dftMag(d2, 200, fs)
+	let mag4 = dftMag(d4, 200, fs)
+	ok(mag4 < mag2, `order 4 (${mag4.toFixed(4)}) attenuates more at 200Hz than order 2 (${mag2.toFixed(4)})`)
+})
+
+test('bandpass — passes center, rejects edges', () => {
+	let fs = 44100, N = 4096
+	let data = impulse(N)
+	audio.bandpass(data, { fc: 1000, Q: 5, fs })
+	let mag1k = dftMag(data, 1000, fs)
+	let mag100 = dftMag(data, 100, fs)
+	let mag10k = dftMag(data, 10000, fs)
+	ok(mag1k > mag100 * 3, `bandpass: 1kHz (${mag1k.toFixed(3)}) >> 100Hz (${mag100.toFixed(3)})`)
+	ok(mag1k > mag10k * 3, `bandpass: 1kHz (${mag1k.toFixed(3)}) >> 10kHz (${mag10k.toFixed(3)})`)
+})
+
+test('bandpass — Q controls width', () => {
+	let fs = 44100, N = 4096
+	let narrow = impulse(N), wide = impulse(N)
+	audio.bandpass(narrow, { fc: 1000, Q: 10, fs })
+	audio.bandpass(wide, { fc: 1000, Q: 1, fs })
+	// Normalize by peak to isolate width: constant-skirt BPF peak scales with Q
+	let narrowRatio = dftMag(narrow, 700, fs) / dftMag(narrow, 1000, fs)
+	let wideRatio = dftMag(wide, 700, fs) / dftMag(wide, 1000, fs)
+	ok(wideRatio > narrowRatio * 2, `Q=1 wider at 700Hz (ratio ${wideRatio.toFixed(3)}) than Q=10 (${narrowRatio.toFixed(3)})`)
+})
+
 test('lowShelf — boosts bass', () => {
 	let fs = 44100, N = 4096
 	let data = impulse(N)

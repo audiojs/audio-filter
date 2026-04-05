@@ -22,7 +22,7 @@ Canonical audio filter implementations.<br>
 <sub>[Graphic EQ](#graphic-eq) · [Parametric EQ](#parametric-eq) · [Crossover](#crossover) · [Crossfeed](#crossfeed) · [Shelving](#shelving) · [Baxandall](#baxandall) · [Tilt EQ](#tilt-eq)</sub>
 
 **[Effect](#effect)**<br>
-<sub>[DC blocker](#dc-blocker) · [Comb](#comb-filter) · [Allpass](#allpass) · [Pre-emphasis](#pre-emphasis--de-emphasis) · [Notch](#notch) · [Resonator](#resonator) · [Pink noise](#pink-noise) · [Spectral tilt](#spectral-tilt) · [Variable bandwidth](#variable-bandwidth)</sub>
+<sub>[DC blocker](#dc-blocker) · [Comb](#comb-filter) · [Allpass](#allpass) · [Pre-emphasis](#pre-emphasis--de-emphasis) · [Lowpass](#lowpass) · [Highpass](#highpass) · [Bandpass](#bandpass) · [Notch](#notch) · [Resonator](#resonator) · [Pink noise](#pink-noise) · [Spectral tilt](#spectral-tilt) · [Variable bandwidth](#variable-bandwidth)</sub>
 
 </td></tr></table>
 
@@ -41,8 +41,8 @@ import { aWeighting, kWeighting } from 'audio-filter/weighting'
 import { gammatone, melBank } from 'audio-filter/auditory'
 import { moogLadder, oberheim } from 'audio-filter/analog'
 import { vocoder, lpcAnalysis } from 'audio-filter/speech'
-import { parametricEq, crossover, baxandall, tilt } from 'audio-filter/eq'
-import { dcBlocker, notch, resonator } from 'audio-filter/effect'
+import { parametricEq, crossover, baxandall, tilt, lowShelf, highShelf } from 'audio-filter/eq'
+import { dcBlocker, notch, lowpass, highpass, bandpass, resonator } from 'audio-filter/effect'
 ```
 
 
@@ -749,7 +749,67 @@ deemphasis(buffer, { alpha: 0.97 })  // after decoding — exact inverse
 ![Pre-emphasis](plot/emphasis.svg)
 
 
-### Resonator
+### Lowpass
+
+Removes everything above cutoff frequency — the most common filter in audio.
+
+**Order 2** (default): RBJ biquad lowpass — $-12\,\text{dB/oct}$<br>
+**Order 4+**: Butterworth cascaded SOS — $-6n\,\text{dB/oct}$ where $n$ = order
+
+```js
+import { lowpass } from 'audio-filter/effect'
+
+lowpass(buffer, { fc: 2000, fs: 44100 })                // 2nd-order (default)
+lowpass(buffer, { fc: 2000, order: 4, fs: 44100 })      // 4th-order Butterworth
+lowpass(buffer, { fc: 2000, Q: 1.5, fs: 44100 })        // resonant
+```
+
+**Use when**: anti-aliasing, smoothing, removing hiss, synth subtractive filtering<br>
+**vs Moog ladder**: lowpass is a clean linear filter; Moog adds nonlinear saturation and self-oscillation
+
+![Lowpass](plot/lowpass.svg)
+
+
+### Highpass
+
+Removes everything below cutoff frequency — DC removal, rumble elimination.
+
+**Order 2** (default): RBJ biquad highpass — $-12\,\text{dB/oct}$<br>
+**Order 4+**: Butterworth cascaded SOS — $-6n\,\text{dB/oct}$ where $n$ = order
+
+```js
+import { highpass } from 'audio-filter/effect'
+
+highpass(buffer, { fc: 80, fs: 44100 })                 // rumble filter
+highpass(buffer, { fc: 80, order: 4, fs: 44100 })       // steeper rolloff
+```
+
+**Use when**: removing rumble, mic handling noise, subsonic content before dynamics processing<br>
+**vs DC blocker**: highpass has adjustable cutoff and slope; DC blocker is simpler, lighter, fixed near 0 Hz
+
+![Highpass](plot/highpass.svg)
+
+
+### Bandpass
+
+Passes frequencies around center frequency, rejects the rest — constant 0 dB peak gain.
+
+**Implementation**: RBJ biquad bandpass (constant peak, Q controls width)
+
+```js
+import { bandpass } from 'audio-filter/effect'
+
+bandpass(buffer, { fc: 1000, Q: 5, fs: 44100 })         // narrow
+bandpass(buffer, { fc: 1000, Q: 0.5, fs: 44100 })       // wide
+```
+
+**Use when**: isolating frequency regions, radio effect, walkie-talkie simulation, band splitting<br>
+**vs Resonator**: bandpass is RBJ biquad (standard); resonator has constant peak gain — use resonator for modal synthesis
+
+![Bandpass](plot/bandpass.svg)
+
+
+### Notch
 
 Constant peak-gain bandpass — peak amplitude stays fixed regardless of bandwidth.
 
@@ -876,6 +936,9 @@ variableBandwidth(buffer, { fc: 2000, Q: 1.0, fs: 44100 })
 | Standalone bass or treble shelf | `lowShelf` / `highShelf` |
 | Remove DC offset | `dcBlocker` |
 | Remove mains hum / suppress resonance | `notch` |
+| Clean lowpass / anti-alias | `lowpass` |
+| Remove rumble / subsonic content | `highpass` |
+| Isolate a frequency band | `bandpass` |
 | Create resonant combing | `comb` |
 | Phase-shift without changing magnitude | `allpass.first`, `allpass.second` |
 | Pre-process for audio coding | `emphasis` / `deemphasis` |

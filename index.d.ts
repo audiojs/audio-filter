@@ -191,6 +191,41 @@ export interface CrossfeedParams {
 /** Bauer stereophonic-to-binaural crossfeed, in-place on both channels */
 export function crossfeed(left: Buf, right: Buf, params: CrossfeedParams): void
 
+export interface ShelfParams {
+  fc?: number        // corner frequency Hz
+  gain?: number      // dB boost/cut (default 0)
+  Q?: number         // slope control (default 0.707)
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+
+/** Low-shelf filter — boost or cut below corner frequency */
+export function lowShelf(data: Buf, params: ShelfParams): Buf
+/** High-shelf filter — boost or cut above corner frequency */
+export function highShelf(data: Buf, params: ShelfParams): Buf
+
+export interface BaxandallParams {
+  bass?: number      // dB (default 0)
+  treble?: number    // dB (default 0)
+  fBass?: number     // bass pivot Hz (default 250)
+  fTreble?: number   // treble pivot Hz (default 4000)
+  fs?: number
+  [key: string]: unknown
+}
+
+/** Baxandall bass/treble tone control — cascaded low-shelf + high-shelf */
+export function baxandall(data: Buf, params: BaxandallParams): Buf
+
+export interface TiltParams {
+  gain?: number      // dB: positive = bass up / treble down (default 0)
+  pivot?: number     // pivot frequency Hz (default 1000)
+  fs?: number
+  [key: string]: unknown
+}
+
+/** Tilt EQ — see-saw around a pivot frequency */
+export function tilt(data: Buf, params: TiltParams): Buf
+
 // ---------------------------------------------------------------------------
 // Effect — signal processing utilities (in-place, state in params)
 // ---------------------------------------------------------------------------
@@ -242,3 +277,27 @@ export interface VariableBandwidthParams {
 /** Variable-bandwidth biquad filter (recalculates coefficients each block) */
 export function variableBandwidth(data: Buf, params?: VariableBandwidthParams): Buf
 
+export interface FilterParams {
+  fc?: number        // cutoff/center frequency Hz
+  Q?: number         // quality factor (default 0.707)
+  order?: number     // filter order: 2 = biquad, 4+ = Butterworth cascade
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+
+/** Highpass filter — removes below cutoff. Order 2: RBJ biquad. Order 4+: Butterworth SOS. */
+export function highpass(data: Buf, params: FilterParams): Buf
+/** Lowpass filter — removes above cutoff. Order 2: RBJ biquad. Order 4+: Butterworth SOS. */
+export function lowpass(data: Buf, params: FilterParams): Buf
+/** Bandpass filter — passes around center frequency, rejects rest. RBJ biquad. */
+export function bandpass(data: Buf, params: FilterParams): Buf
+
+export interface NotchParams {
+  fc?: number        // notch frequency Hz
+  Q?: number         // quality factor (default 30)
+  fs?: number        // sample rate (default 44100)
+  [key: string]: unknown
+}
+
+/** Notch (band-reject) filter — unity gain except null at fc */
+export function notch(data: Buf, params: NotchParams): Buf
