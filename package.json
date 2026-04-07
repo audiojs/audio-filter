@@ -2,15 +2,22 @@
   "name": "audio-filter",
   "version": "2.2.0",
   "type": "module",
+  "sideEffects": false,
   "description": "Audio filters – weighting, auditory, analog, speech, eq, effects",
   "exports": {
     ".": "./index.js",
     "./weighting": "./weighting/index.js",
+    "./weighting/*.js": "./weighting/*.js",
     "./auditory": "./auditory/index.js",
+    "./auditory/*.js": "./auditory/*.js",
     "./analog": "./analog/index.js",
+    "./analog/*.js": "./analog/*.js",
     "./speech": "./speech/index.js",
+    "./speech/*.js": "./speech/*.js",
     "./eq": "./eq/index.js",
-    "./effect": "./effect/index.js"
+    "./eq/*.js": "./eq/*.js",
+    "./effect": "./effect/index.js",
+    "./effect/*.js": "./effect/*.js"
   },
   "types": "./index.d.ts",
   "scripts": {
