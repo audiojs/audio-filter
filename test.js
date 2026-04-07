@@ -1,6 +1,9 @@
 import test, { almost, ok, is } from 'tst'
 import * as audio from './index.js'
 import { biquad, filter, freqz, mag2db } from 'digital-filter'
+import butterworth from 'digital-filter/iir/butterworth.js'
+audio.highpass.useButterworth(butterworth)
+audio.lowpass.useButterworth(butterworth)
 
 let EPSILON = 1e-10
 let LOOSE = 1e-4

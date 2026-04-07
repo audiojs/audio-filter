@@ -1,6 +1,6 @@
 {
   "name": "audio-filter",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "type": "module",
   "sideEffects": false,
   "description": "Audio filters – weighting, auditory, analog, speech, eq, effects",
